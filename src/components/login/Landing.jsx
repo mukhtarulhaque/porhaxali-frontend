@@ -4,18 +4,11 @@ import { FORCE_LOGOUT } from "../../api/Urls";
 import UseOnlineStatus from "../Hooks/UseOnlineStatus";
 import { 
   GraduationCap,
-  BookOpen, 
-  Award, 
-  Compass, 
-  Users, 
-  Star, 
-  ArrowRight, 
+  Award,  
+  Users,  
   CheckCircle2, 
-  Video, 
   Sparkles, 
-  HelpCircle, 
   PhoneCall, 
-  Download 
 } from 'lucide-react';
 import Carousel from "../pages/unauthHome/Carousel";
 import LoginButton from "../pages/commom/LoginButton";
