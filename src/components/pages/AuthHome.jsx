@@ -1,5 +1,5 @@
 import React, {useState} from "react";
-import StudentDashboard from "./student/studentDeshboard";
+import StudentDashboard from "./student/StudentDashboard";
 
 const AuthHome = () => {
     

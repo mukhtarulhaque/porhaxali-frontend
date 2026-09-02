@@ -14,7 +14,7 @@ import Carousel from "../pages/unauthHome/Carousel";
 import LoginButton from "../pages/commom/LoginButton";
 import RegisterButton from '../pages/commom/RegisterButton';
 import Footer from "../pages/footer";
-import CoursesCarousel from "../pages/unauthHome/coursesCarousel";
+import CoursesCarousel from "../pages/unauthHome/CoursesCarousel";
 import DynamicModal from "../pages/commom/Modals/DynamicModal";
 
 const Landing = () => {

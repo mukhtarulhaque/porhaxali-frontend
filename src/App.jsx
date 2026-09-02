@@ -9,10 +9,10 @@ import Layout from './components/pages/Layout';
 import Missing from './components/pages/commom/Missing';
 import ForgottenPassword from './components/login/ForgottenPassword';
 import CoursesPage from './components/pages/student/CoursesPage';
-import StudentDashboard from './components/pages/student/studentDeshboard';
+import StudentDashboard from './components/pages/student/StudentDashboard';
 import LiveSessions from './components/pages/student/LiveSessions';
 import NotesPage from './components/pages/student/NotesPage';
-import ProfileSettings from './components/pages/student/profileSettings';
+import ProfileSettings from './components/pages/student/ProfileSettings';
 import Dashboard from './components/pages/admin/Dashboard';
 import AllCourses from './components/pages/admin/AllCourses';
 import AllStudents from './components/pages/admin/AllStudents';
@@ -26,7 +26,7 @@ function App() {
         {/* public routes */}
         <Route path='/login' element={<Login />}></Route>
         <Route path='/register' element={<Register />}></Route>
-        <Route path='/' element={<Landing />}></Route>
+        <Route path='/landing' element={<Landing />}></Route>
         <Route path='/forgottenPassword' element={<ForgottenPassword />}></Route>
         
         {/* <Route path='unauthorized' element={<Unauthorized/>}></Route> */}
