@@ -209,7 +209,7 @@ const Signup = () => {
                         />
                     </div>
                     <div className="w-full p-4">
-                        <Link to="/landing" className="text-sm text-stone-600">Back to Home page</Link>
+                        <Link to="/" className="text-sm text-stone-600">Back to Home page</Link>
                     </div>
                     <div className="w-full pl-4 pr-4 pb-4">
                         <button 

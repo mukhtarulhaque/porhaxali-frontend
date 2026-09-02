@@ -44,7 +44,7 @@ const Navbar = () => {
         console.log('Logged out successfully', response.data);
         if(response.data.success) {
           setIsLoading(false);
-          navigate('/landing');
+          navigate('/');
         }
       } catch (error) {
         console.error('Logout failed', error.response?.status);
