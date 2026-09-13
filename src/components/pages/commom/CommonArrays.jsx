@@ -10,7 +10,7 @@ const studentTabs = [
     { id: 'BrowseCourses', label: 'Browse Courses', icon: BookOpen, path:'/courses'},
     { id: 'LiveSessions', label: 'Live Sessions', icon: Calendar, path:'/liveSessions'},
     { id: 'Notes', label: 'Notes', icon: MessageSquare, path:'/notes' },
-    { id: 'ProfileSettings', label: 'Profile Settings', icon: User, path:'/profileSetting'}
+    { id: 'ProfileSettings', label: 'Student Profile', icon: User, path:'/profileSetting'}
   ];
 const adminTabs = [
     { id: "adminDashboard", label: "Overview System", icon: LayoutDashboard, path:'/adminDashboard'},

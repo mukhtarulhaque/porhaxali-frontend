@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef} from "react";
+import {useState, useEffect, useRef} from "react";
 import { useNavigate, useLocation } from 'react-router-dom';
 //import { VALID_OTP } from "../pages/commom/ValidationConstants";
 import { VERIFYOTP,RESENDOTP } from "../../api/Urls";
@@ -18,7 +18,7 @@ const VerifyOtp = ({userEmail, setIsLoading, setIsVisible, setError}) => {
 
     const navigate = useNavigate();
     const location = useLocation();
-    const { setAuth } = useAuth();
+    const { setAuth, refreshCurrentUser } = useAuth();
 
     const [otp, setOtp] = useState(new Array(6).fill(""));
     const inputRefs = useRef([]);
@@ -110,10 +110,12 @@ const VerifyOtp = ({userEmail, setIsLoading, setIsVisible, setError}) => {
                 console.log(response);
                 if (response.data.data.role === "ADMIN") {
                     setIsLoading(false);
-                    navigate('/adminDashboard',{ state: { from: location} }, { replace: true });
+                    navigate('/adminDashboard',{ state: { from: location}, replace: true });
                   } else {
+                    const currentAuth = await refreshCurrentUser(jwtToken);
+                    const isProfileCompleted = currentAuth?.studentProfileCompletion?.profileCompleted;
                     setIsLoading(false);
-                    navigate('/authUser',{ state: { from: location} }, { replace: true });
+                    navigate(isProfileCompleted ? '/dashboard' : '/profileSetting',{ state: { from: location}, replace: true });
                   }
 
                 

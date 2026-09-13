@@ -1,10 +1,10 @@
-import React, {useState, useEffect, useRef, useContext} from "react";
+import {useState, useEffect, useRef} from "react";
 import { useNavigate,Link } from "react-router-dom";
 import UseAuth from "../../Hooks/UseAuth";
 //import AuthContext from "../../context/AuthProvider";
 import { LOGOUT } from "../../../api/Urls";
 import Axios from "../../../api/Axios";
-import {BellPlus, GraduationCap} from 'lucide-react';
+import {GraduationCap} from 'lucide-react';
 import SearchBox from "./SearchBox";
 import { BarLoader } from "react-spinners";
 import NotificationBell from "./NotificationBell";
@@ -12,7 +12,7 @@ const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [isAvatarOpen, setIsAvatarOpen] = useState(false);
     const avatarDropDownRef = useRef(null);
-    const { auth } = UseAuth();
+    const { auth, clearAuth } = UseAuth();
     //const { setAuth } = useContext(AuthContext);
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
@@ -43,6 +43,7 @@ const Navbar = () => {
         );
         console.log('Logged out successfully', response.data);
         if(response.data.success) {
+          clearAuth();
           setIsLoading(false);
           navigate('/');
         }
@@ -117,8 +118,8 @@ const Navbar = () => {
                                     <p className="text-sm font-medium text-gray-900 dark:text-white">{auth.userName}</p>
                                     <p className="text-xs text-gray-500 truncate dark:text-gray-400">{auth.userEmail}</p>
                                 </div>
-                                <Link className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Your Profile</Link>
-                                <Link className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Settings</Link>
+                                <Link to="/profileSetting" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Student Profile</Link>
+                                <Link to="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Dashboard</Link>
                                 <hr className="border-gray-100 dark:border-gray-700" />
                                 <Link className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={logout}>Sign out</Link>
                             </div>
