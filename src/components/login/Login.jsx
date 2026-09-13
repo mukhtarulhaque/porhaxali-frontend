@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from "react";
+import {useState, useEffect} from "react";
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 //import { SlBookOpen } from "react-icons/sl";
 import Label from "../pages/commom/Label";
@@ -12,18 +12,14 @@ import useAuth from '../Hooks/UseAuth';
 import { GraduationCap, Mail, LockKeyhole,Eye, EyeClosed } from 'lucide-react';
 
 const Login = () => {
-    const { setAuth } = useAuth();
+    const { setAuth, refreshCurrentUser } = useAuth();
 
     const navigate = useNavigate();
     const location = useLocation();
-    const from = location.state?.form?.pathname || '/';
-
     const [email, setEmail] = useState('');
-    const [validEmail, setValidEmail] = useState(false);
     const [emailFocus, setEmailFocus] = useState(false);
 
     const [password, setPassword] = useState('');
-    const [validPassword, setValidPassword] = useState(false);
     const [passwordFocus, setPasswordFocus] = useState(false);
 
     const [isVisible, setIsVisible] = useState(false);
@@ -34,15 +30,8 @@ const Login = () => {
         setShowPassword(!showPassword);
     }
 
-    useEffect(() => {
-        const result = VALID_EMAIL.test(email);
-        setValidEmail(result);
-    }, [email]);
-
-    useEffect(() => {
-        const result = VALID_PASSWORD.test(password);
-        setValidPassword(result);
-    },[password]);
+    const validEmail = VALID_EMAIL.test(email);
+    const validPassword = VALID_PASSWORD.test(password);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -71,9 +60,11 @@ const Login = () => {
                     //navigate(from, { replace: true });
                     //<Navigate to="/landing" state={{ from: location }} replace />
                     if(userRole === 'STUDENT') {
-                        navigate('/authUser', { state: { from: location} }, {replace: true});
+                        const currentAuth = await refreshCurrentUser(jwtToken);
+                        const isProfileCompleted = currentAuth?.studentProfileCompletion?.profileCompleted;
+                        navigate(isProfileCompleted ? '/dashboard' : '/profileSetting', { state: { from: location}, replace: true});
                     } else if(userRole === 'ADMIN') {
-                        navigate('/adminDashboard', { state: { from: location} }, {replace: true});
+                        navigate('/adminDashboard', { state: { from: location}, replace: true});
                     }
                    
                     //navigate('/authPage');

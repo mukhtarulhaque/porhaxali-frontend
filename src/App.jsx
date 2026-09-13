@@ -1,5 +1,5 @@
 import './App.css'
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Login from './components/login/Login';
 import Register from './components/login/Signup';
 import Landing from './components/login/Landing';
@@ -40,6 +40,7 @@ function App() {
           <Route path='/liveSessions' element={<LiveSessions/>}></Route>
           <Route path='/notes' element={<NotesPage/>}></Route>
           <Route path='/profileSetting' element={<ProfileSettings/>}></Route>
+          <Route path='/student/profile' element={<Navigate to="/profileSetting" replace />}></Route>
           {/* Admin routes */}
           <Route path='/allCourses' element={<AllCourses/>}></Route>
           <Route path='/allStudents' element={<AllStudents/>}></Route>
