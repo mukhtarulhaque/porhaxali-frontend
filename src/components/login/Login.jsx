@@ -52,15 +52,17 @@ const Login = () => {
                     const response = await Axios.post(LOGIN, data);
                     console.log(response);
                     setIsLoading(false);
-                    const jwtToken = response.data.data.token;
+                    const jwtToken = response.data.data.accessToken ?? response.data.data.token;
+                    const accessToken = jwtToken;
+                    const refreshToken = response.data.data.refreshToken;
                     const userEmail = response.data.data.email;
                     const userName = response.data.data.name;
                     const userRole = response.data.data.role;
-                    setAuth({jwtToken, userEmail, userName, userRole})
+                    setAuth({accessToken, jwtToken, refreshToken, userEmail, userName, userRole})
                     //navigate(from, { replace: true });
                     //<Navigate to="/landing" state={{ from: location }} replace />
                     if(userRole === 'STUDENT') {
-                        const currentAuth = await refreshCurrentUser(jwtToken);
+                        const currentAuth = await refreshCurrentUser(jwtToken, { accessToken, jwtToken, refreshToken });
                         const isProfileCompleted = currentAuth?.studentProfileCompletion?.profileCompleted;
                         navigate(isProfileCompleted ? '/dashboard' : '/profileSetting', { state: { from: location}, replace: true});
                     } else if(userRole === 'ADMIN') {

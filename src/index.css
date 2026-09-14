@@ -12,6 +12,7 @@
 
 @theme {
     --font-montserrat: 'Montserrat', sans-serif;
+    --font-nunito: 'Nunito Sans', sans-serif;
 
     --animate-disappear: fadeOut 5s ease-out forwards;
 

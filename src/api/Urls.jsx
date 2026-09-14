@@ -2,6 +2,7 @@ const REGISTER = 'api/auth/register';
 const VERIFYOTP = 'api/auth/otp/verify';
 const RESENDOTP = 'api/auth/otp/resend';
 const LOGIN = 'api/auth/login';
+const REFRESH = 'api/auth/refresh';
 const LOGOUT = 'api/auth/logout';
 const FORCE_LOGOUT = 'api/auth/force-logout-requests';
 const GET_CURRENT_USER = 'api/auth/me';
@@ -18,6 +19,6 @@ const GET_STUDENTS = 'api/student/all';
 
 
 export {
-    REGISTER,VERIFYOTP,RESENDOTP,LOGIN,LOGOUT,FORCE_LOGOUT,GET_SUBJECTS,POST_SUBJECTS,
+    REGISTER,VERIFYOTP,RESENDOTP,LOGIN,REFRESH,LOGOUT,FORCE_LOGOUT,GET_SUBJECTS,POST_SUBJECTS,
     GET_CURRENT_USER,GET_MY_STUDENT_PROFILE,SAVE_MY_STUDENT_PROFILE,GET_FORCE_LOGOUT_REQUEST,GET_STUDENTS
 }
