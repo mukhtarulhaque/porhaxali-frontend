@@ -20,6 +20,10 @@ const VerifyOtp = ({userEmail, setIsLoading, setIsVisible, setError}) => {
     const location = useLocation();
     const { setAuth, refreshCurrentUser } = useAuth();
 
+    const getErrorMessage = (error, fallback) => {
+        return error.response?.data?.message ?? fallback;
+    };
+
     const [otp, setOtp] = useState(new Array(6).fill(""));
     const inputRefs = useRef([]);
     
@@ -101,7 +105,7 @@ const VerifyOtp = ({userEmail, setIsLoading, setIsVisible, setError}) => {
             }
         try {
             
-                const response = await Axios.post(VERIFYOTP, data);
+                const response = await Axios.post(VERIFYOTP, data, { skipAuth: true });
                 const jwtToken = response.data.data.accessToken ?? response.data.data.token;
                 const accessToken = jwtToken;
                 const refreshToken = response.data.data.refreshToken;
@@ -125,9 +129,9 @@ const VerifyOtp = ({userEmail, setIsLoading, setIsVisible, setError}) => {
                
             //setSuccessAlert(true);
         } catch (error) {
-            console.log(error.response.data);
+            console.log(error.response?.data);
             setIsVisible(true);
-            setError(error.response.data.message)
+            setError(getErrorMessage(error, "OTP verification failed. Please try again."))
             setIsLoading(false);
             //setRefershPage(false);
         }
@@ -145,15 +149,15 @@ const handleResendOtp = async (e) => {
             }
         try {
             
-                const response = await Axios.post(RESENDOTP, data);
+                const response = await Axios.post(RESENDOTP, data, { skipAuth: true });
                 console.log(response);
                 setIsLoading(false);
                
             //setSuccessAlert(true);
         } catch (error) {
-            console.log(error.response.data);
+            console.log(error.response?.data);
             setIsVisible(true);
-            setError(error.response.data.message)
+            setError(getErrorMessage(error, "Could not resend OTP. Please try again."))
             setIsLoading(false);
             //setRefershPage(false);
         }

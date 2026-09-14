@@ -30,6 +30,10 @@ const Login = () => {
         setShowPassword(!showPassword);
     }
 
+    const getErrorMessage = (error) => {
+        return error.response?.data?.message ?? "Login failed. Please try again.";
+    };
+
     const validEmail = VALID_EMAIL.test(email);
     const validPassword = VALID_PASSWORD.test(password);
 
@@ -49,7 +53,7 @@ const Login = () => {
                 password: password,
             }
             try {  
-                    const response = await Axios.post(LOGIN, data);
+                    const response = await Axios.post(LOGIN, data, { skipAuth: true });
                     console.log(response);
                     setIsLoading(false);
                     const jwtToken = response.data.data.accessToken ?? response.data.data.token;
@@ -73,9 +77,9 @@ const Login = () => {
                 
             } catch (error) {
                 console.log(error);
-                console.log(error.response.data);
+                console.log(error.response?.data);
                 setIsVisible(true);
-                setError(error.response.data.message)
+                setError(getErrorMessage(error))
                 setIsLoading(false);
                 //setRefershPage(false);
             }
