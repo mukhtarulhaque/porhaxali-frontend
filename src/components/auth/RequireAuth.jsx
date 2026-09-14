@@ -7,18 +7,19 @@ import { BarLoader } from "react-spinners";
 const RequireAuth = () => {
     const { auth, clearAuth, refreshCurrentUser } = UseAuth();
     const location = useLocation();
+    const accessToken = auth?.accessToken ?? auth?.jwtToken;
 
-    const [isCheckingSession, setIsCheckingSession] = useState(Boolean(auth?.jwtToken && !auth?.userEmail));
+    const [isCheckingSession, setIsCheckingSession] = useState(Boolean(accessToken && !auth?.userEmail));
 
     useEffect(() => {
         const loadCurrentUser = async () => {
-            if (!auth?.jwtToken || auth?.userEmail) {
+            if (!accessToken || auth?.userEmail) {
                 setIsCheckingSession(false);
                 return;
             }
 
             try {
-                await refreshCurrentUser(auth.jwtToken);
+                await refreshCurrentUser(accessToken);
             } catch (error) {
                 console.error("Unable to refresh current user", error);
                 clearAuth();
@@ -28,7 +29,7 @@ const RequireAuth = () => {
         };
 
         loadCurrentUser();
-    }, [auth?.jwtToken, auth?.userEmail, clearAuth, refreshCurrentUser]);
+    }, [accessToken, auth?.userEmail, clearAuth, refreshCurrentUser]);
 
     if (isCheckingSession) {
         return (
@@ -41,7 +42,7 @@ const RequireAuth = () => {
     return (
 
         //  auth?.userEmail
-        auth?.jwtToken
+        accessToken
             ? <>
                 <Navbar />
                 <Outlet />

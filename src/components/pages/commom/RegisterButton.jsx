@@ -1,10 +1,9 @@
-import React from "react";
 import { Link } from 'react-router-dom';
 
 const RegisterButton = () => {
     return(
         <>
-            <Link className="bg-[rgba(244,87,128)] hover:bg-[#f23366] py-1.5 px-4 text-white text-sm rounded-[5px]" to="/register">Sign Up</Link>
+            <Link className="rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-indigo-700/20 transition-colors hover:bg-indigo-800" to="/register">Sign Up</Link>
         </>
     )
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const carouselItems = [
@@ -6,21 +6,21 @@ const carouselItems = [
     id: 1,
     title: "Your Gateway to Smarter Learning",
     description: "Empowering students with structured regional education, comprehensive notes, and interactive live classes.",
-    bgClass: "from-pink-500 to-rose-600",
+    bgClass: "from-indigo-800 via-indigo-700 to-slate-900",
     badge: "Now Live"
   },
   {
     id: 2,
     title: "Interactive Live Sessions",
     description: "Clear your doubts instantly with real-time audio and chat interaction directly with top educators.",
-    bgClass: "from-purple-600 to-indigo-700",
+    bgClass: "from-slate-900 via-indigo-800 to-cyan-800",
     badge: "Interactive Features"
   },
   {
     id: 3,
     title: "Handcrafted Study Notes",
     description: "Download verified high-quality PDF study guides and syllabus breakdowns anytime, anywhere.",
-    bgClass: "from-blue-500 to-cyan-600",
+    bgClass: "from-teal-700 via-emerald-700 to-slate-900",
     badge: "Resources Available"
   }
 ];
@@ -45,7 +45,7 @@ const Carousel = () => {
   }, [nextSlide, isPaused]);
     return(
         <section 
-      className="relative w-full max-w-6xl mx-auto h-95 md:h-110 group rounded-3xl shadow-xl overflow-hidden bg-slate-900"
+      className="relative w-full max-w-6xl mx-auto h-95 md:h-110 group rounded-2xl shadow-xl shadow-indigo-950/15 overflow-hidden bg-slate-900"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -64,13 +64,13 @@ const Carousel = () => {
               
               {/* Animated Badge */}
               <div className={`transform transition-all duration-700 delay-300 ease-out ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-                <span className="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-widest shadow-sm">
+                <span className="bg-white/15 backdrop-blur-md text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-sm ring-1 ring-white/20">
                   {slide.badge}
                 </span>
               </div>
               
               {/* Animated Title */}
-              <h1 className={`text-3xl md:text-5xl font-extrabold text-white leading-tight tracking-tight drop-shadow-md transform transition-all duration-700 delay-500 ease-out ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+              <h1 className={`font-montserrat text-3xl md:text-5xl font-extrabold text-white leading-tight tracking-tight drop-shadow-md transform transition-all duration-700 delay-500 ease-out ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
                 {slide.title}
               </h1>
               
@@ -81,7 +81,7 @@ const Carousel = () => {
               
               {/* Animated Button */}
               <div className={`pt-4 transform transition-all duration-700 delay-900 ease-out ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
-                <button className="bg-white text-slate-900 font-bold px-8 py-3 rounded-xl shadow-lg hover:bg-slate-50 hover:scale-105 transition-all duration-300 active:scale-95">
+                <button className="bg-white text-indigo-900 font-bold px-8 py-3 rounded-xl shadow-lg hover:bg-indigo-50 hover:scale-105 transition-all duration-300 active:scale-95">
                   Explore Now
                 </button>
               </div>
@@ -89,8 +89,7 @@ const Carousel = () => {
             </div>
 
             {/* Background Decorative Circles */}
-            <div className="absolute -right-10 -bottom-10 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute right-32 top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div className="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-slate-950/25 to-transparent pointer-events-none"></div>
           </div>
         );
       })}

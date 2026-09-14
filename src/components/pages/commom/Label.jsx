@@ -1,11 +1,10 @@
-import React from "react";
-const Label = ({ htmlFor, nameOfLabel, validRule }) => {
+const Label = ({ htmlFor, nameOfLabel, validRule, nameOfState }) => {
 
     return (
         <>
-            <label className="block tracking-wide text-gray-700 text-xs font-bold mb-1" htmlFor={htmlFor}>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-600" htmlFor={htmlFor}>
 
-                <span className={validRule ? "text-slate-700 duration-300" : "text-red-400 duration-300"}>
+                <span className={nameOfState && !validRule ? "text-rose-600 duration-300" : "text-slate-700 duration-300"}>
                     {nameOfLabel}
                 </span>
             </label>
