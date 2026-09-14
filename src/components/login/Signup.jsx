@@ -134,7 +134,7 @@ const Signup = () => {
                             <GraduationCap className="h-8 w-8 text-indigo-700"/>
                             <span className="font-montserrat">Porhaxali</span>
                             </div>
-                            <h1 className="mt-6 font-montserrat text-2xl font-black tracking-tight text-slate-950">Create your student account</h1>
+                            <h1 className="mt-6 font-montserrat text-2xl font-black tracking-tight text-slate-950">Create your account</h1>
                             <p className="mt-1 text-sm leading-relaxed text-slate-500">Join live classes, notes, and guided learning tracks in one place.</p>
                             {isVisible && 
                             error && <div className="animate-disappear mt-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700 shadow-sm">{error}</div>
