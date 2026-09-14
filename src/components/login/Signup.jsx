@@ -42,6 +42,10 @@ const Signup = () => {
         setShowPassword(!showPassword);
     }
 
+    const getErrorMessage = (error) => {
+        return error.response?.data?.message ?? "Sign up failed. Please try again.";
+    };
+
 
     useEffect(()=>{
         const result = VALID_NAME.test(fullName);
@@ -92,15 +96,15 @@ const Signup = () => {
             }
             try {
                 
-                    const response = await Axios.post(REGISTER, data);
+                    const response = await Axios.post(REGISTER, data, { skipAuth: true });
                     console.log(response);
                     setOpenVerifyOtp(true);
                     setIsLoading(false);
                 
             } catch (error) {
-                console.log(error.response.data);
+                console.log(error.response?.data);
                 setIsVisible(true);
-                setError(error.response.data.message)
+                setError(getErrorMessage(error))
                 setIsLoading(false);
                 //setRefershPage(false);
             }
