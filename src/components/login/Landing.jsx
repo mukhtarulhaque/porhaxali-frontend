@@ -12,6 +12,7 @@ import LoginButton from "../pages/commom/LoginButton";
 import RegisterButton from '../pages/commom/RegisterButton';
 import Footer from "../pages/footer";
 import CoursesCarousel from "../pages/unauthHome/CoursesCarousel";
+import TeacherApply from "./LandingComponents/TeacherApply";
 
 const Landing = () => {
 
@@ -33,17 +34,19 @@ const Landing = () => {
     return(
         <>
         {isOnline ? (
-          <div className="min-h-screen bg-slate-50 text-slate-800 selection:bg-rose-500 selection:text-white font-nunito">
+          <div className="min-h-screen bg-slate-50 text-slate-800 selection:bg-rose-500 selection:text-white font-montserrat">
       
           {/* 🌐 TOP GLOBAL NAVBAR */}
           <header className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 px-6 h-20 flex items-center justify-between shadow-sm shadow-slate-900/5">
             <div className="flex items-center gap-8">
+            <a href="#main">
               <div className="flex">
-              <GraduationCap className="h-8 w-8 -ml-3.5 text-indigo-700" />
-              {/* <span className="text-2xl font-black text-pink-600 tracking-tight">Porhaxali</span> */}
+               
+                <GraduationCap className="h-8 w-10 -ml-3.5 text-indigo-700" />
               <span className="font-montserrat text-2xl font-black tracking-tight text-slate-950">Porhaxali</span>
+               
               </div>
-            
+              </a>
               <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold text-slate-600">
                 <a href="#courses" className="hover:text-indigo-700 transition">Explore Courses</a>
                 <a href="#olympiad" className="hover:text-indigo-700 transition flex items-center gap-1">
@@ -51,20 +54,17 @@ const Landing = () => {
                 </a>
                 <a href="#counseling" className="hover:text-indigo-700 transition">Career Counseling</a>
                 <a href="#team" className="hover:text-indigo-700 transition">Our Faculty</a>
+                <a href="#apply" className="hover:text-indigo-700 transition">Become a Faculty</a>
               </nav>
             </div>
             <div className="flex items-center gap-4">
-              {/* <button className="text-sm font-semibold text-slate-700 hover:text-pink-600 transition">Sign In</button> */}
               <LoginButton/>
-              {/* <button className="bg-slate-900 hover:bg-pink-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all">
-                Get Started Free
-              </button> */}
               <RegisterButton/>
             </div>
           </header>
     
           {/* 🚀 HERO HERO HERO SECTION */}
-          <section className="max-w-7xl mx-auto px-6 pt-12 pb-20 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          <section id="main" className="max-w-7xl mx-auto px-6 pt-12 pb-20 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             <div className="lg:col-span-7 col-span-12 space-y-6">
               <div className="inline-flex items-center gap-2 bg-rose-50 border border-rose-100 text-rose-700 px-4 py-1.5 rounded-full text-xs font-bold shadow-sm">
                 <Sparkles size={14} /> Admissions Open for 2026 - 2027 Academic Batch
@@ -84,7 +84,6 @@ const Landing = () => {
                 </a>
               </div>
             </div>
-            {/* <div className="lg:col-span-5 hidden lg:block relative"> */}
             <div className="lg:col-span-5 col-span-12 lg:block relative">
             <Carousel/>
             </div>
@@ -230,13 +229,10 @@ const Landing = () => {
                 ))}
               </div>
             </div>
-    
           </section>
-    
-          {/* 📋 GLOBAL FOOTER ACCENT BANNER */}
-          {/* <footer className="bg-white border-t border-slate-200 py-10 px-6 text-center text-xs text-slate-400 font-medium">
-            © 2026 Porhaxali Academic System Hub. All educational content layout designs reserved.
-          </footer> */}
+          <section id="apply" className="bg-linear-to-r from-gray-600 via-slate-500 to-indigo-800 text-white py-20 px-6 relative overflow-hidden scroll-mt-24 font-montserrat">
+            <TeacherApply/>
+          </section>
           <Footer/>
     
         </div>

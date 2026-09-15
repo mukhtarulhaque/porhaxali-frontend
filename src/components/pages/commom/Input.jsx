@@ -4,7 +4,7 @@ const Input = ({ id, type, value, placeHolder, autoComplete, onChange, aria_inva
     return (
         <>
             <input
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
+                className="w-full rounded-xl border border-slate-200 bg-white pl-9 px-4 py-1.75 pr-10 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                 type={type}
                 id={id}
                 value={value}
