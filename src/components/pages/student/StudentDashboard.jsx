@@ -106,7 +106,7 @@ export default function StudentDashboard() {
               <div className="text-center md:text-left space-y-1">
                 <h1 className="text-2xl md:text-3xl font-bold">{displayName}</h1>
                 <p className="text-pink-100 font-medium text-sm md:text-base">
-                  {academicSummary || 'Class and board not added yet'}
+                  Class {academicSummary || 'Class and board not added yet'}
                 </p>
                 <div className="pt-2 flex flex-wrap gap-2 justify-center md:justify-start">
                   {studentProfile?.id && (

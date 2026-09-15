@@ -126,15 +126,15 @@ const Signup = () => {
         aria-label="Loading Bar"
       />
             </div> :
-           <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 font-nunito text-slate-900"> 
+           <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 font-montserrat text-slate-900"> 
                 <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-indigo-950/10">
                     <div className="w-full px-6 pt-6">
-                        <div className="border-b border-slate-200 pb-5">
-                            <div className="flex items-center gap-2 text-2xl font-black text-slate-950">
-                            <GraduationCap className="h-8 w-8 text-indigo-700"/>
-                            <span className="font-montserrat">Porhaxali</span>
+                        <div className="">
+                            <div className="flex items-center gap-2 text-3xl font-black text-slate-950 pb-2">
+                                <GraduationCap className="h-10 w-10 text-indigo-700"/>
+                                <h1 className="">Porhaxali</h1>
                             </div>
-                            <h1 className="mt-6 font-montserrat text-2xl font-black tracking-tight text-slate-950">Create your account</h1>
+                            <h1 className="pt-2 text-xl font-black tracking-tight text-slate-950">Create your account</h1>
                             <p className="mt-1 text-sm leading-relaxed text-slate-500">Join live classes, notes, and guided learning tracks in one place.</p>
                             {isVisible && 
                             error && <div className="animate-disappear mt-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700 shadow-sm">{error}</div>
@@ -146,8 +146,6 @@ const Signup = () => {
                     <>
                     <VerifyOtp userEmail={email} setIsLoading={setIsLoading} setIsVisible={setIsVisible} setError={setError}/>
                     </> :
-                    // <div className="w-full animate-rotate-border rounded-lg bg-conic/[from_var(--border-angle)] from-[#ff0080] via-[#7928ca] to-[#ff0080] from-80% via-90% to-100% p-px">
-                    //     <div className="p-10 rounded-lg bg-black">Assam</div>
                     <>
                     <div className="w-full px-6 pt-6">
                         <Label htmlFor="fullName" nameOfLabel="Full Name" validRule={validFullName} nameOfState={fullName} />

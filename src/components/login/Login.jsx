@@ -139,7 +139,7 @@ const Login = () => {
                             validValue={validPassword}
                             errorMesg="Follow the password policy rules"
                         />
-                        <p className={`absolute top-7 left-80 pr-2 text-xl cursor-pointer hover:text-orange-400 duration-300`} onClick={handleShowPassword}>
+                        <p className={`absolute right-6 top-10 -translate-y-1/2 cursor-pointer text-lg text-slate-400 transition hover:text-indigo-700`} onClick={handleShowPassword}>
                                 {!showPassword ? <EyeClosed className="w-5 h-5" /> :
                                     <Eye className="w-5 h-5" />}
                         </p>
