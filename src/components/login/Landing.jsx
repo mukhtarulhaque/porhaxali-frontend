@@ -12,7 +12,7 @@ import LoginButton from "../pages/commom/LoginButton";
 import RegisterButton from '../pages/commom/RegisterButton';
 import Footer from "../pages/footer";
 import CoursesCarousel from "../pages/unauthHome/CoursesCarousel";
-import TeacherApply from "./LandingComponents/TeacherApply";
+import TeacherApply from "./landingComponents/TeacherApply";
 
 const Landing = () => {
 
