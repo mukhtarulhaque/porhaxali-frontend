@@ -230,7 +230,7 @@ const Landing = () => {
               </div>
             </div>
           </section>
-          <section id="apply" className="bg-linear-to-r from-gray-600 via-slate-500 to-indigo-800 text-white py-20 px-6 relative overflow-hidden scroll-mt-24 font-montserrat">
+          <section id="apply" aria-labelledby="faculty-heading" className="relative scroll-mt-20 overflow-hidden bg-slate-950 px-6 py-16 text-white font-montserrat md:py-20">
             <TeacherApply/>
           </section>
           <Footer/>
