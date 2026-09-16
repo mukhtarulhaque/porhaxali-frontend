@@ -16,6 +16,7 @@ import ProfileSettings from './components/pages/student/ProfileSettings';
 import Dashboard from './components/pages/admin/Dashboard';
 import AllCourses from './components/pages/admin/AllCourses';
 import AllStudents from './components/pages/admin/AllStudents';
+import FacultyAccountSetup from './components/login/FacultyAccountSetup';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path='/register' element={<Register />}></Route>
         <Route path='/' element={<Landing />}></Route>
         <Route path='/forgottenPassword' element={<ForgottenPassword />}></Route>
+        <Route path='/faculty/setup-account' element={<FacultyAccountSetup />}></Route>
         
         {/* <Route path='unauthorized' element={<Unauthorized/>}></Route> */}
 
