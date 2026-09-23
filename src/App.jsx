@@ -17,6 +17,8 @@ import Dashboard from './components/pages/admin/Dashboard';
 import AllCourses from './components/pages/admin/AllCourses';
 import AllStudents from './components/pages/admin/AllStudents';
 import FacultyAccountSetup from './components/login/FacultyAccountSetup';
+import FacultyDashboard from './components/pages/faculty/FacultyDashboard';
+import CompleteApplication from './components/pages/faculty/CompleteApplication';
 
 function App() {
   return (
@@ -46,6 +48,9 @@ function App() {
           {/* Admin routes */}
           <Route path='/allCourses' element={<AllCourses/>}></Route>
           <Route path='/allStudents' element={<AllStudents/>}></Route>
+          {/* Faculty Routes */}
+          <Route path='/facultyDashboard' element={<FacultyDashboard/>}></Route>
+          <Route path='/completeFacultyApplication' element={<CompleteApplication/>}></Route>
         </Route>
         {/* catch all*/}
         <Route path='*' element={<Missing />}></Route>

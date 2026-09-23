@@ -86,9 +86,9 @@ const TeacherApply = () => {
                     <div className="mt-10 border-t border-white/15 pt-6 lg:mt-12">
                         <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Getting started is simple</p>
                         <ol className="mt-4 grid grid-cols-3 gap-3 text-xs leading-5 text-slate-200 sm:text-sm">
-                            {["Share your details", "Check your email", "Set your password"].map((step, index) => (
+                            {["Share your details", "Check your email", "Complete Your Application"].map((step, index) => (
                                 <li key={step}>
-                                    <span className="mb-2 block font-semibold text-emerald-300" aria-hidden="true">0{index + 1}</span>
+                                    <span className="mb-2 block font-semibold text-emerald-300" aria-hidden="true"> Step {index + 1}</span>
                                     {step}
                                 </li>
                             ))}

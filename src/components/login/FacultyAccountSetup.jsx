@@ -82,7 +82,7 @@ const FacultyAccountSetup = () => {
     return (
         <main className="min-h-screen bg-slate-950 px-5 py-8 font-montserrat text-slate-900 sm:px-8 lg:flex lg:items-center lg:py-12">
             <div className="mx-auto grid w-full max-w-6xl overflow-hidden rounded-3xl bg-white shadow-2xl shadow-black/30 lg:grid-cols-[0.9fr_1.1fr]">
-                <section className="relative overflow-hidden bg-linear-to-br from-emerald-800 via-emerald-900 to-slate-950 px-7 py-10 text-white sm:px-12 sm:py-14 lg:min-h-[650px] lg:px-14 lg:py-16">
+                <section className="relative overflow-hidden bg-linear-to-br from-emerald-800 via-emerald-900 to-slate-950 px-7 py-10 text-white sm:px-12 sm:py-14 lg:min-h-162.5 lg:px-14 lg:py-16">
                     <div className="absolute -right-24 -top-20 h-72 w-72 rounded-full border border-white/10" aria-hidden="true" />
                     <div className="absolute -bottom-40 -left-32 h-96 w-96 rounded-full bg-emerald-400/10 blur-3xl" aria-hidden="true" />
                     <div className="relative flex h-full flex-col">
