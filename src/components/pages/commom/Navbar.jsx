@@ -1,5 +1,5 @@
 import {useState, useEffect, useRef} from "react";
-import { useNavigate,Link } from "react-router-dom";
+import { useLocation, useNavigate,Link } from "react-router-dom";
 import UseAuth from "../../Hooks/UseAuth";
 //import AuthContext from "../../context/AuthProvider";
 import { LOGOUT } from "../../../api/Urls";
@@ -8,6 +8,7 @@ import {GraduationCap} from 'lucide-react';
 import SearchBox from "./SearchBox";
 import { BarLoader } from "react-spinners";
 import NotificationBell from "./NotificationBell";
+import { getMyApplication } from '../../../api/InstructorApplication';
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [isAvatarOpen, setIsAvatarOpen] = useState(false);
@@ -15,7 +16,9 @@ const Navbar = () => {
     const { auth, clearAuth } = UseAuth();
     //const { setAuth } = useContext(AuthContext);
     const navigate = useNavigate();
+    const location = useLocation();
     const [isLoading, setIsLoading] = useState(false);
+    const [applicationStatus, setApplicationStatus] = useState(null);
     
     useEffect(()=> {
         const handleClickOutsideAvatarDropDown = (event) => {
@@ -28,6 +31,33 @@ const Navbar = () => {
             document.removeEventListener('mousedown', handleClickOutsideAvatarDropDown);
         };
     },[]);
+
+    useEffect(() => {
+      if (auth.userRole !== 'INSTRUCTOR_APPLICANT') {
+        return undefined;
+      }
+
+      let active = true;
+      const loadApplicationStatus = async () => {
+        try {
+          const application = await getMyApplication();
+          if (active) setApplicationStatus(application.applicationStatus);
+        } catch (error) {
+          if (active && error.response?.status === 404) setApplicationStatus('DRAFT');
+        }
+      };
+
+      loadApplicationStatus();
+      return () => { active = false; };
+    }, [auth.userRole, location.pathname]);
+
+    const isDraftApplication = applicationStatus === 'DRAFT';
+    const applicationPath = applicationStatus && !isDraftApplication
+      ? '/faculty/application/status'
+      : '/completeFacultyApplication';
+    const applicationLabel = applicationStatus && !isDraftApplication
+      ? 'Application Status'
+      : 'Complete Application';
     const logout = async () => {
       setIsLoading(true);
       try {
@@ -91,7 +121,7 @@ const Navbar = () => {
                         <div className="w-full -ml-10">
                           <SearchBox/>
                         </div>
-                        <NotificationBell/>
+                        {auth.userRole === 'ADMIN' && <NotificationBell />}
                         {/* <div className=" bg-stone-200 p-2 rounded-4xl hover:cursor-pointer hover:bg-slate-800  text-stone-800 hover:text-blue-400">
                           <BellPlus className="h-5 w-5"/>
                           <span className="absolute top-5 right-30 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
@@ -102,7 +132,7 @@ const Navbar = () => {
                             <button
                                 type="button"
                                 className="flex rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(244,87,128)] focus:ring-offset-2 duration-150"
-                                onClick={() => setIsAvatarOpen(!isOpen)}
+                                onClick={() => setIsAvatarOpen((open) => !open)}
                             >
                                 <span className="sr-only">Open user menu</span>
                                     <img
@@ -118,8 +148,13 @@ const Navbar = () => {
                                     <p className="text-sm font-medium text-gray-900 dark:text-white">{auth.userName}</p>
                                     <p className="text-xs text-gray-500 truncate dark:text-gray-400">{auth.userEmail}</p>
                                 </div>
-                                <Link to="/profileSetting" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Student Profile</Link>
-                                <Link to="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Dashboard</Link>
+                                {auth.userRole === 'INSTRUCTOR_APPLICANT' ? <>
+                                  <Link to={applicationPath} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">{applicationLabel}</Link>
+                                  {isDraftApplication && <Link to="/completeFacultyApplication/documents" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Documents</Link>}
+                                </> : <>
+                                  <Link to="/profileSetting" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Student Profile</Link>
+                                  <Link to="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Dashboard</Link>
+                                </>}
                                 <hr className="border-gray-100 dark:border-gray-700" />
                                 <Link className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={logout}>Sign out</Link>
                             </div>
@@ -175,11 +210,12 @@ const Navbar = () => {
             </a>
           ))} */}
           <div className="pt-4 border-t border-gray-200 flex flex-col space-y-2 px-3">
-            <button className="w-full text-center text-gray-600 hover:text-pink-600 font-medium py-2">
-              Login
-            </button>
-            <button className="w-full text-center bg-pink-600 hover:bg-pink-700 text-white font-medium py-2 rounded-md transition duration-150">
-              Sign Up
+            {auth.userRole === 'INSTRUCTOR_APPLICANT' && <>
+              <Link to={applicationPath} onClick={() => setIsOpen(false)} className="w-full text-center text-gray-600 hover:text-emerald-700 font-medium py-2">{applicationLabel}</Link>
+              {isDraftApplication && <Link to="/completeFacultyApplication/documents" onClick={() => setIsOpen(false)} className="w-full text-center text-gray-600 hover:text-emerald-700 font-medium py-2">Documents</Link>}
+            </>}
+            <button onClick={logout} className="w-full text-center bg-pink-600 hover:bg-pink-700 text-white font-medium py-2 rounded-md transition duration-150">
+              Sign out
             </button>
           </div>
         </div>

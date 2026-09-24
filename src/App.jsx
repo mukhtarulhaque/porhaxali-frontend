@@ -19,6 +19,8 @@ import AllStudents from './components/pages/admin/AllStudents';
 import FacultyAccountSetup from './components/login/FacultyAccountSetup';
 import FacultyDashboard from './components/pages/faculty/FacultyDashboard';
 import CompleteApplication from './components/pages/faculty/CompleteApplication';
+import RequireRole from './components/auth/RequireRole';
+import InstructorApplicationStatus from './components/pages/faculty/InstructorApplicationStatus';
 
 function App() {
   return (
@@ -50,7 +52,12 @@ function App() {
           <Route path='/allStudents' element={<AllStudents/>}></Route>
           {/* Faculty Routes */}
           <Route path='/facultyDashboard' element={<FacultyDashboard/>}></Route>
-          <Route path='/completeFacultyApplication' element={<CompleteApplication/>}></Route>
+          <Route element={<RequireRole role="INSTRUCTOR_APPLICANT" />}>
+            <Route path='/completeFacultyApplication' element={<CompleteApplication/>}></Route>
+            <Route path='/completeFacultyApplication/documents' element={<CompleteApplication initialStep={3}/>}></Route>
+            <Route path='/faculty/application/status' element={<InstructorApplicationStatus/>}></Route>
+            <Route path='/faculty/application/view' element={<CompleteApplication initialStep={4} readOnly/>}></Route>
+          </Route>
         </Route>
         {/* catch all*/}
         <Route path='*' element={<Missing />}></Route>

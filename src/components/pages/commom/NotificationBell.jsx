@@ -1,50 +1,31 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Bell, CheckCheck, Trash2, Loader2 } from 'lucide-react';
 import { GET_FORCE_LOGOUT_REQUEST } from '../../../api/Urls';
 import Axios from '../../../api/Axios';
-import UseAuth from '../../Hooks/UseAuth';
 
 const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const dropdownRef = useRef(null);
-  const { auth } = UseAuth();
-  const [unreadCount, setUnreadCount] = useState();
+  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
 
   // Calculate unread items count
   //const unreadCount = notifications.filter((n) => !n.isRead).length;
-  console.log(notifications)
-
   // 1. Initial Fetch from Backend Database
   useEffect(() => {
     const fetchNotificationsFromDB = async () => {
       try {
         setLoading(true);
-        // Replace with your actual backend endpoint:
-        // const response = await fetch('/api/notifications');
-        // const data = await response.json();
-        
-        // Mock DB Data Response
-        await Axios.get(GET_FORCE_LOGOUT_REQUEST,
-        {
-            headers: {
-                'Authorization': `Bearer ${auth.jwtToken}`, // Ensure space after Bearer
-                'Accept': 'application/json'
-            }
-        }
-        )
-        .then(function (response) {
-            setNotifications(response.data);
-        })
-
-        const mockData = [
-          { id: '1', title: 'New Course Enrolled', message: 'A student enrolled in Chemistry IX.', isRead: false, time: '5m ago' },
-          { id: '2', title: 'System Notice', message: 'Scheduled database maintenance tonight.', isRead: false, time: '1h ago' },
-          { id: '3', title: 'Assignment Submitted', message: 'Math homework submitted by Rahul.', isRead: true, time: '2h ago' },
-        ];
-        
-        //setNotifications(mockData);
+        const response = await Axios.get(GET_FORCE_LOGOUT_REQUEST);
+        const requests = response.data.data ?? [];
+        setNotifications(requests.map((request) => ({
+          ...request,
+          title: 'Force logout request',
+          message: `${request.user?.userName ?? request.user?.email ?? 'A user'} requested a forced logout.`,
+          isRead: request.status !== 'PENDING',
+          time: request.requestedAt ? new Date(request.requestedAt).toLocaleString() : '',
+        })));
       } catch (error) {
         console.error('Error fetching notifications:', error);
       } finally {
