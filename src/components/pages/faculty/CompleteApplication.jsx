@@ -1,25 +1,40 @@
-import React, {useState,useRef, useEffect} from "react";
-import { Camera, Upload, User, Briefcase, FileText, 
-    RefreshCw, X, FileUp, Paperclip, Trash2 } from 'lucide-react';
+import {useState,useRef, useEffect} from "react";
+import { User, Briefcase, FileText, FileUp } from 'lucide-react';
+import { BarLoader } from 'react-spinners';
+import { useNavigate } from 'react-router-dom';
 import useAuth from "../../Hooks/UseAuth";
 import Input from "../commom/Input";
 import Label from "../commom/Label";
 import FacultyProfilePhoto from "./facultyComponents/FacultyProfilePhoto";
-import { getPhotoError, getAddressError, getDobError,
-    getGenderError, getQualificationError, getDepartmentError,
-    getDesignationError, getExperienceYearsError, getBiodataError } from "./facultyComponents/Validator";
+import { getAddressError, getDobError, getExperienceYearsError, getBiodataError } from "./facultyComponents/Validator";
+import FacultyApplicationDocuments from './facultyComponents/FacultyApplicationDocuments';
+import DynamicModal from '../commom/Modals/DynamicModal';
+import {
+    createMyApplication,
+    getMyApplication,
+    submitMyApplication,
+    updateMyApplication,
+} from '../../../api/InstructorApplication';
+import { EMPTY_APPLICATION } from './instructorApplicationConfig';
 
+const apiMessage = (error, fallback) => error.response?.data?.message ?? fallback;
 
-const CompleteApplication = () => {
-    const [currentStep, setCurrentStep] = useState(1);
+const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
+    const [currentStep, setCurrentStep] = useState(initialStep);
     const [photoPreview, setPhotoPreview] = useState(null);
-    const [documents, setDocuments] = useState([]);
+    const [application, setApplication] = useState(null);
+    const [isLoadingApplication, setIsLoadingApplication] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
+    const [applicationMessage, setApplicationMessage] = useState(null);
 
-    const docInputRef = useRef(null);
     const dateInputRef = useRef(null);
+    const navigate = useNavigate();
 
     const { auth} = useAuth(); 
     const [errors, setErrors] = useState({});
+    const isDraft = application?.applicationStatus === 'DRAFT';
 
     const steps = [
         { id: 1, name: 'Personal & Photo', icon: User },
@@ -33,91 +48,120 @@ const CompleteApplication = () => {
       email: '',
       phone: '',
       dob: '',
-      gender: '',
       address: '',
-      qualification: '',
-      department: '',
-      designation: '',
       experienceYears: '',
-      specialization: '',
+      teachingExperienceDescription: '',
       bio: '',
     });
-    // --- Document Upload Operations ---
-    const handleDocumentChange = (e) => {
-      const selectedFiles = Array.from(e.target.files || []);
-      if (selectedFiles.length > 0) {
-        setDocuments((prev) => [...prev, ...selectedFiles]);
+
+    const applyServerApplication = (loaded) => {
+      setApplication(loaded);
+      if (loaded.applicationStatus && loaded.applicationStatus !== 'DRAFT') setCurrentStep(4);
+      setFormData((current) => ({
+        ...current,
+        fullName: loaded.applicantName ?? current.fullName,
+        email: loaded.applicantEmail ?? current.email,
+        phone: loaded.phoneNumber ?? current.phone,
+        dob: loaded.dateOfBirth ?? '',
+        address: loaded.address ?? '',
+        experienceYears: loaded.teachingExperienceYears ?? '',
+        teachingExperienceDescription: loaded.teachingExperienceDescription ?? '',
+        bio: loaded.bio ?? '',
+      }));
+      return loaded;
+    };
+
+    const refreshApplication = async () => applyServerApplication(await getMyApplication());
+
+    useEffect(() => {
+      let active = true;
+      const initialize = async () => {
+        try {
+          let loaded;
+          try {
+            loaded = await getMyApplication();
+          } catch (error) {
+            if (error.response?.status !== 404) throw error;
+            loaded = await createMyApplication(EMPTY_APPLICATION);
+          }
+          if (!active) return;
+          if (readOnly && loaded.applicationStatus === 'DRAFT') {
+            navigate('/completeFacultyApplication', { replace: true });
+            return;
+          }
+          if (!readOnly && loaded.applicationStatus !== 'DRAFT') {
+            navigate('/faculty/application/status', { replace: true });
+            return;
+          }
+          applyServerApplication(loaded);
+        } catch (error) {
+          console.error('Unable to load instructor application', error);
+          if (active) setApplicationMessage({ type: 'error', text: apiMessage(error, 'Unable to load your application.') });
+        } finally {
+          if (active) setIsLoadingApplication(false);
+        }
+      };
+      initialize();
+      return () => { active = false; };
+    }, [navigate, readOnly]);
+
+    const saveDraft = async () => {
+      if (application?.applicationStatus !== 'DRAFT') {
+        setApplicationMessage({ type: 'error', text: 'Only a DRAFT application can be edited.' });
+        return false;
+      }
+      setIsSaving(true);
+      setApplicationMessage(null);
+      try {
+        const saved = await updateMyApplication({
+          teachingExperienceYears: formData.experienceYears === '' ? null : Number(formData.experienceYears),
+          teachingExperienceDescription: formData.teachingExperienceDescription.trim() || null,
+          dateOfBirth: formData.dob || null,
+          address: formData.address.trim() || null,
+          bio: formData.bio.trim() || null,
+        });
+        applyServerApplication(saved);
+        setApplicationMessage({ type: 'success', text: 'Draft saved successfully.' });
+        return true;
+      } catch (error) {
+        console.error('Unable to save instructor application', error);
+        setApplicationMessage({ type: 'error', text: apiMessage(error, 'Unable to save your application.') });
+        return false;
+      } finally {
+        setIsSaving(false);
       }
     };
-  
-    const removeDocument = (indexToRemove) => {
-      setDocuments((prev) => prev.filter((_, idx) => idx !== indexToRemove));
-    };
-  
-    const handleDragOver = (e) => e.preventDefault();
-    const handleDrop = (e) => {
-      e.preventDefault();
-      const droppedFiles = Array.from(e.dataTransfer.files || []);
-      if (droppedFiles.length > 0) {
-        setDocuments((prev) => [...prev, ...droppedFiles]);
-      }
-    };
-    const nextStep = () =>{
+
+    const nextStep = async () =>{
+        if (!isDraft) {
+            setCurrentStep((prev) => Math.min(prev + 1, 4));
+            return;
+        }
         if(currentStep === 1) {
-            const photoErr = getPhotoError(photoPreview);
             const dobError = getDobError(formData.dob);
-            const genderError = getGenderError(formData.gender);
             const addressError = getAddressError(formData.address);
-            if (photoErr) {
-                setErrors((prev) => ({ ...prev, photo: photoErr }));
-                return; // Stop navigation
-              }
             if (dobError) {
                 setErrors((prev) => ({ ...prev, dob: dobError }));
-                return;
-              }
-            if (genderError) {
-                setErrors((prev) => ({ ...prev, gender: genderError }));
                 return;
               }
             if (addressError) {
                 setErrors((prev) => ({ ...prev, address: addressError }));
                 return;
                 }
-            setCurrentStep((prev) => Math.min(prev + 1, 4));
+            if (await saveDraft()) setCurrentStep((prev) => Math.min(prev + 1, 4));
         }
         if(currentStep === 2) {
-            const qualError = getQualificationError(formData.qualification);
-            const deptError = getDepartmentError(formData.department);
-            const desigError = getDesignationError(formData.designation); 
             const experiYrError = getExperienceYearsError(formData.experienceYears);
-            const areaSplError = getAreaSpecializationError(formData.specialization);
             const biodataError = getBiodataError(formData.bio);
-            if (qualError) {
-                setErrors((prev) => ({ ...prev, qualification: qualError }));
-                return;
-            }
-            if (deptError) {
-                setErrors((prev) => ({ ...prev, department: deptError }));
-                return;
-            }
-            if(desigError) {
-                setErrors((prev) => ({ ...prev, designation: desigError}));
-                return;
-            }
             if(experiYrError) {
                 setErrors((prev) => ({ ...prev, experienceYears: experiYrError}));
-                return;
-            }
-            if(areaSplError) {
-                setErrors((prev) => ({ ...prev, areaSpecialization: areaSplError}));
                 return;
             }
             if(biodataError) {
                 setErrors((prev) => ({ ...prev, biodata: biodataError}));
                 return;
             }
-            setCurrentStep((prev) => Math.min(prev + 1, 4));
+            if (await saveDraft()) setCurrentStep((prev) => Math.min(prev + 1, 4));
         } 
         if(currentStep === 3) {
             setCurrentStep((prev) => Math.min(prev + 1, 4));
@@ -125,14 +169,26 @@ const CompleteApplication = () => {
     } 
     const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
   
-const handleSubmit = (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
-      console.log('Submission Payload:', {
-        ...formData,
-        photo: photoPreview,
-        documents: documents.map((d) => d.name),
-      });
-    alert('Bio-data along with documents submitted successfully!');
+    if (currentStep === 4 && isDraft) setShowSubmitConfirmation(true);
+};
+
+const confirmSubmission = async () => {
+  if (isSubmitting || !isDraft) return;
+  setIsSubmitting(true);
+  setApplicationMessage(null);
+  try {
+    const submitted = await submitMyApplication();
+    applyServerApplication(submitted);
+    setShowSubmitConfirmation(false);
+    navigate('/faculty/application/status', { replace: true });
+  } catch (error) {
+    console.error('Unable to submit instructor application', error);
+    setApplicationMessage({ type: 'error', text: apiMessage(error, 'Unable to submit your application.') });
+  } finally {
+    setIsSubmitting(false);
+  }
 };
 // 3. Clear the error dynamically as the user types
 const handleInputChange = (e) => {
@@ -166,55 +222,20 @@ const openDatePicker = () => {
   }
 };
 
-const handleGenderBlur = (e) => {
-    const errorMsg = getGenderError(e.target.value);
-    setErrors((prev) => ({ ...prev, gender: errorMsg }));
-  };
-
-const handleQualificationBlur = (e) => {
-    const errorMsg = getQualificationError(e.target.value);
-    setErrors((prev) => ({ ...prev, qualification: errorMsg }));
-  };
- 
-const handleDepartmentBlur = (e) => {
-    const errorMsg = getDepartmentError(e.target.value);
-    setErrors((prev) => ({ ...prev, department: errorMsg }));
-  };
-
-
-const handleDesignationBlur = (e) => {
-    const errorMsg = getDesignationError(e.target.value);
-    setErrors((prev) => ({ ...prev, designation: errorMsg }));
-};
-
 const handleExperienceYearsBlur = (e) => {
     const errorMsg = getExperienceYearsError(e.target.value);
     setErrors((prev) => ({ ...prev, experienceYears: errorMsg }));
-};
-const getAreaSpecializationError = (value) => {
-    if (!value || !value.trim()) {
-      return 'Area of Specialization is required.';
-    }
-    const trimmed = value.trim();
-    if (trimmed.length < 2) {
-      return 'Specialization must be at least 2 characters long.';
-    }
-    if (trimmed.length > 80) {
-      return 'Specialization cannot exceed 80 characters.';
-    }
-    if (!/[a-zA-Z]/.test(trimmed)) {
-      return 'Please enter a valid specialization title.';
-    }
-    return '';
-};
-const handleAreaSpecializationBlur = (e) => {
-    const errorMsg = getAreaSpecializationError(e.target.value);
-    setErrors((prev) => ({ ...prev, areaSpecialization: errorMsg }));
 };
 const handleBioBlur = (e) => {
     const errorMsg = getBiodataError(e.target.value);
     setErrors((prev) => ({ ...prev, biodata: errorMsg }));
 };
+
+    if (isLoadingApplication) {
+      return <div className="flex min-h-[70vh] items-center justify-center bg-slate-50">
+        <BarLoader color="#059669" width={220} aria-label="Loading application" />
+      </div>;
+    }
 
     return (
       <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
@@ -262,6 +283,9 @@ const handleBioBlur = (e) => {
                 <p className="mt-1 text-xs text-slate-500 sm:text-sm">
                     Comprehensive bio-data & credentials intake portal
                 </p>
+                {application?.applicationStatus && <span className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                    {application.applicationStatus.replaceAll('_', ' ')}
+                </span>}
             </div>
         </div>
             <div className="hidden shrink-0 items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/80 px-3.5 py-2 sm:flex">
@@ -354,16 +378,19 @@ const handleBioBlur = (e) => {
   </div>
 </div>
           {/* Form Body */}
+          {applicationMessage && <div role={applicationMessage.type === 'error' ? 'alert' : 'status'} className={`mx-6 mt-6 rounded-xl border px-4 py-3 text-xs sm:mx-8 ${applicationMessage.type === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+            {applicationMessage.text}
+          </div>}
           <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
             {/* STEP 1: Personal Details & Camera/Photo */}
             {currentStep === 1 && (
               <div className="space-y-6">
                 <FacultyProfilePhoto
+                    application={application}
+                    isDraft={application?.applicationStatus === 'DRAFT'}
                     photoPreview={photoPreview}
                     setPhotoPreview={setPhotoPreview}
-                    error={errors?.photo}
-                    setError={(msg) => setErrors((prev) => ({ ...prev, photo: msg }))}
-                    clearError={() => setErrors((prev) => ({ ...prev, photo: '' }))}
+                    onRefresh={refreshApplication}
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="font-montserrat">
@@ -381,7 +408,7 @@ const handleBioBlur = (e) => {
                   <div className="font-montserrat">
                   <Label htmlFor="phone" nameOfLabel="Phone Number"/>
                     <Input
-                        id="phone" value={auth.phone} autoComplete="off" type="phone" readOnly disabled={true}
+                        id="phone" value={application?.phoneNumber ?? auth.phone ?? ''} autoComplete="off" type="phone" readOnly disabled={true}
                     />
                   </div>
                 <div className="w-full font-montserrat">
@@ -396,6 +423,7 @@ const handleBioBlur = (e) => {
                             required
                             max={new Date().toISOString().split('T')[0]} // Blocks future dates in picker
                             value={formData.dob || ''}
+                            disabled={!isDraft}
                             onChange={handleInputChange}
                             onBlur={handleDobBlur}
                             className={`mt-2 w-full rounded-xl border bg-slate-50 px-4 py-3.5 pr-12 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 disabled:cursor-wait disabled:opacity-70 [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden ${
@@ -408,6 +436,7 @@ const handleBioBlur = (e) => {
                             <button
                                 type="button"
                                 onClick={openDatePicker}
+                                disabled={!isDraft}
                                 tabIndex={-1}
                                 className="absolute cursor-pointer inset-y-0 right-0 top-2 flex items-center pr-4 text-slate-400 hover:text-emerald-600 transition-colors"
                                 aria-label="Open date picker"
@@ -443,54 +472,6 @@ const handleBioBlur = (e) => {
                     )}
                 </div>
 
-                <div className="w-full font-montserrat">
-                    <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-600">
-                        Gender <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
-                        <select
-                            name="gender"
-                            value={formData.gender || ''}
-                            onChange={handleInputChange}
-                            onBlur={handleGenderBlur}
-                            className={`mt-2 w-full appearance-none rounded-xl border px-4 py-3.5 pr-12 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 disabled:cursor-wait disabled:opacity-70 ${
-                                    errors?.gender
-                                    ? 'border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
-                                    : 'border-slate-200 bg-slate-50 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10'
-                                    }`}
-                            >
-                            <option value="">Select Gender</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                        </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 top-2 flex items-center pr-4 text-slate-500">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-4 w-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2}
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </div>
-                    </div>
-                    {errors?.gender && (
-                        <p className="mt-1.5 flex items-center gap-1.5 text-xs text-rose-600">
-                            <svg className="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                    fillRule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                    clipRule="evenodd"
-                                />
-                            </svg>
-                            {errors.gender}
-                        </p>
-                    )}
-                </div>
-                
                     <div className="w-full font-montserrat">
                         <div className="flex items-center justify-between">
                             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
@@ -512,6 +493,7 @@ const handleBioBlur = (e) => {
                             required
                             maxLength={200}
                             value={formData.address || ''}
+                            disabled={!isDraft}
                             onChange={handleInputChange}
                             onBlur={handleAddressBlur}
                             placeholder="Street name, Flat/House No., Landmark, City, State, ZIP"
@@ -548,106 +530,14 @@ const handleBioBlur = (e) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="w-full font-montserrat">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                        Highest Qualification <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                        type="text"
-                        name="qualification"
-                        required
-                        value={formData.qualification || ''}
-                        onChange={handleInputChange}
-                        onBlur={handleQualificationBlur}
-                        placeholder="e.g. Ph.D. in Computer Science"
-                        className={`mt-2 w-full rounded-xl border px-4 py-3.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 disabled:cursor-wait disabled:opacity-70 ${
-                                    errors?.qualification
-                                ? 'border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
-                                : 'border-slate-200 bg-slate-50 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10'
-                         }`}
-                    />
-                        {errors?.qualification && (
-                             <p className="mt-1.5 flex items-center gap-1.5 text-xs text-rose-600">
-                                <svg className="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                    <path
-                                        fillRule="evenodd"
-                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                        clipRule="evenodd"
-                                    />
-                                </svg>
-                                {errors.qualification}
-                            </p>
-                        )}
-                </div>
-                <div className="w-full font-montserrat">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                        Department <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                        type="text"
-                        name="department"
-                        required
-                        value={formData.department || ''}
-                        onChange={handleInputChange}
-                        onBlur={handleDepartmentBlur}
-                        placeholder="e.g. Information Technology"
-                        className={`mt-2 w-full rounded-xl border px-4 py-3.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 disabled:cursor-wait disabled:opacity-70 ${
-                            errors?.department
-                                    ? 'border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
-                                    : 'border-slate-200 bg-slate-50 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10'
-                                }`}
-                    />
-                    {errors?.department && (
-                        <p className="mt-1.5 flex items-center gap-1.5 text-xs text-rose-600">
-                            <svg className="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                    fillRule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                    clipRule="evenodd"
-                                />
-                            </svg>
-                            {errors.department}
-                         </p>
-                    )}
-                </div>
-                <div className="w-full font-montserrat">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                        Designation <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                        type="text"
-                        name="designation"
-                        required
-                        value={formData.designation || ''}
-                        onChange={handleInputChange}
-                        onBlur={handleDesignationBlur}
-                        placeholder="e.g. Assistant Professor"
-                        className={`mt-2 w-full rounded-xl border px-4 py-3.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 disabled:cursor-wait disabled:opacity-70 ${
-                            errors?.designation
-                                    ? 'border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
-                                    : 'border-slate-200 bg-slate-50 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10'
-                                }`}
-                    />
-                    {errors?.designation && (
-                        <p className="mt-1.5 flex items-center gap-1.5 text-xs text-rose-600">
-                            <svg className="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                    fillRule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                    clipRule="evenodd"
-                                />
-                            </svg>
-                            {errors.designation}
-                         </p>
-                    )}
-                </div>
-                <div className="w-full font-montserrat">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
                         Years of Experience <span className="text-rose-500">*</span>
                     </label>
                     <input
                         type="text"
                         name="experienceYears"
                         required
-                        value={formData.experienceYears || ''}
+                        value={formData.experienceYears ?? ''}
+                        disabled={!isDraft}
                         onChange={handleInputChange}
                         onBlur={handleExperienceYearsBlur}
                         placeholder="e.g. 6"
@@ -672,34 +562,17 @@ const handleBioBlur = (e) => {
                 </div>
                 <div className="w-full font-montserrat sm:col-span-2">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                        Area of Specialization <span className="text-rose-500">*</span>
+                        Teaching Experience Description
                     </label>
-                    <input
-                        type="text"
-                        name="specialization"
-                        required
-                        value={formData.specialization || ''}
+                    <textarea
+                        name="teachingExperienceDescription"
+                        rows={3}
+                        value={formData.teachingExperienceDescription || ''}
+                        disabled={!isDraft}
                         onChange={handleInputChange}
-                        onBlur={handleAreaSpecializationBlur}
-                        placeholder="e.g. Artificial Intelligence, Distributed Systems"
-                        className={`mt-2 w-full rounded-xl border px-4 py-3.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 disabled:cursor-wait disabled:opacity-70 ${
-                            errors?.areaSpecialization
-                                    ? 'border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
-                                    : 'border-slate-200 bg-slate-50 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10'
-                                }`}
+                        placeholder="Describe your teaching experience, responsibilities, and notable outcomes..."
+                        className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10"
                     />
-                    {errors?.areaSpecialization && (
-                        <p className="mt-1.5 flex items-center gap-1.5 text-xs text-rose-600">
-                            <svg className="h-3.5 w-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                    fillRule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                    clipRule="evenodd"
-                                />
-                            </svg>
-                            {errors.areaSpecialization}
-                         </p>
-                    )}
                 </div>
                  <div className="w-full font-montserrat sm:col-span-2">
                         <div className="flex items-center justify-between">
@@ -722,6 +595,7 @@ const handleBioBlur = (e) => {
                             required
                             maxLength={200}
                             value={formData.bio || ''}
+                            disabled={!isDraft}
                             onChange={handleInputChange}
                             onBlur={handleBioBlur}
                             placeholder="Summary of research or teaching background..."
@@ -754,72 +628,26 @@ const handleBioBlur = (e) => {
   
             {/* STEP 3: Document Upload Facility */}
             {currentStep === 3 && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-800 mb-1">Required Documents</h3>
-                  <p className="text-xs text-slate-500">
-                    Please upload your CV, degree certificates, ID proof, and experience certificates (PDF, DOCX, PNG, JPG).
-                  </p>
-                </div>
-  
-                {/* Drag and Drop Zone */}
-                <div
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  onClick={() => docInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/30 rounded-xl p-8 text-center cursor-pointer transition-colors"
-                >
-                  <input
-                    ref={docInputRef}
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={handleDocumentChange}
-                    className="hidden"
-                  />
-                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm text-blue-600 mb-3">
-                    <FileUp className="w-6 h-6" />
-                  </div>
-                  <p className="text-sm font-medium text-slate-800">
-                    Click to browse files or drag and drop here
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">PDF, DOC, DOCX, or images up to 10MB each</p>
-                </div>
-  
-                {/* Uploaded File List */}
-                {documents.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
-                      Uploaded Files ({documents.length})
-                    </p>
-                    <div className="divide-y divide-slate-200 border border-slate-200 rounded-lg overflow-hidden bg-white">
-                      {documents.map((doc, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 text-sm">
-                          <div className="flex items-center gap-2 truncate">
-                            <Paperclip className="w-4 h-4 text-slate-400 shrink-0" />
-                            <span className="truncate font-medium text-slate-700">{doc.name}</span>
-                            <span className="text-xs text-slate-400 shrink-0">
-                              ({(doc.size / (1024 * 1024)).toFixed(2)} MB)
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeDocument(idx)}
-                            className="text-slate-400 hover:text-rose-600 p-1 rounded-md transition"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <FacultyApplicationDocuments
+                documents={application?.documents ?? []}
+                isDraft={application?.applicationStatus === 'DRAFT'}
+                onRefresh={refreshApplication}
+              />
             )}
   
             {/* STEP 4: Review & Final Submission */}
             {currentStep === 4 && (
               <div className="space-y-5">
+                {!isDraft && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+                  <h3 className="text-base font-bold text-emerald-900">
+                    {application?.applicationStatus === 'SUBMITTED' ? 'Application Submitted' : 'Application is read-only'}
+                  </h3>
+                  <div className="mt-2 space-y-1 text-sm text-emerald-800">
+                    <p><span className="font-semibold">Status:</span> {application?.applicationStatus?.replaceAll('_', ' ')}</p>
+                    {application?.submittedAt && <p><span className="font-semibold">Submitted On:</span> {new Date(application.submittedAt).toLocaleString()}</p>}
+                    <p className="pt-1">Your application has been submitted successfully and is awaiting administrative review.</p>
+                  </div>
+                </div>}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
                   <h4 className="text-sm font-semibold text-slate-900 border-b border-slate-200 pb-2">
                     Registration Review
@@ -835,24 +663,24 @@ const handleBioBlur = (e) => {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-800">{formData.fullName || 'Not provided'}</p>
-                      <p className="text-xs text-slate-500">{formData.designation || 'Designation'} • {formData.department || 'Department'}</p>
                       <p className="text-xs text-slate-500">{auth.userEmail || 'Email'}</p>
                     </div>
                   </div>
   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 pt-2 border-t border-slate-200">
-                    <p><span className="font-semibold text-slate-700">Phone:</span> {auth.phone || '—'}</p>
-                    <p><span className="font-semibold text-slate-700">Qualification:</span> {formData.qualification || '—'}</p>
-                    <p><span className="font-semibold text-slate-700">Specialization:</span> {formData.specialization || '—'}</p>
-                    <p><span className="font-semibold text-slate-700">Experience:</span> {formData.experienceYears ? `${formData.experienceYears} Years` : '—'}</p>
+                    <p><span className="font-semibold text-slate-700">Phone:</span> {application?.phoneNumber || auth.phone || '—'}</p>
+                    <p><span className="font-semibold text-slate-700">Experience:</span> {formData.experienceYears !== '' ? `${formData.experienceYears} Years` : '—'}</p>
+                    <p><span className="font-semibold text-slate-700">Date of Birth:</span> {formData.dob || '—'}</p>
+                    <p className="sm:col-span-2"><span className="font-semibold text-slate-700">Address:</span> {formData.address || '—'}</p>
+                    <p className="sm:col-span-2"><span className="font-semibold text-slate-700">Bio:</span> {formData.bio || '—'}</p>
                   </div>
   
                   <div className="pt-2 border-t border-slate-200">
                     <p className="text-xs font-semibold text-slate-700 mb-1">Attached Documents:</p>
-                    {documents.length > 0 ? (
+                    {(application?.documents?.length ?? 0) > 0 ? (
                       <ul className="list-disc list-inside text-xs text-slate-600">
-                        {documents.map((d, i) => (
-                          <li key={i} className="truncate">{d.name}</li>
+                        {application.documents.map((document) => (
+                          <li key={document.id} className="truncate">{document.originalFileName}</li>
                         ))}
                       </ul>
                     ) : (
@@ -891,6 +719,7 @@ const handleBioBlur = (e) => {
                         <button
                             type="button"
                             onClick={nextStep}
+                            disabled={isSaving}
                             className="inline-flex hover:cursor-pointer items-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-sm shadow-emerald-600/25 transition hover:border-emerald-700 hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-600/20 active:scale-[0.99]"
                         >
                             Next Step
@@ -898,26 +727,50 @@ const handleBioBlur = (e) => {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                             </svg>
                         </button>
-                    ) : (
+                    ) : isDraft ? (
                         <button
                             type="submit"
+                            disabled={isSaving || isSubmitting}
                             className="inline-flex items-center gap-2 rounded-xl border border-emerald-700 bg-emerald-700 px-7 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-md shadow-emerald-700/30 transition hover:border-emerald-800 hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-700/20 active:scale-[0.99]"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 stroke-[2.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
-                                Submit Bio-Data
+                                {isSubmitting ? 'Submitting…' : 'Submit Application'}
                         </button>
-                     )}
+                     ) : <div />}
                 </div>
             </div>
           </form>
+          <DynamicModal
+            isOpen={showSubmitConfirmation}
+            onClose={() => { if (!isSubmitting) setShowSubmitConfirmation(false); }}
+            title="Submit application?"
+          >
+            <p className="text-sm leading-6 text-slate-600">
+              Please review your information and documents carefully. Submission sends your application for administrative review, and it cannot be edited while it is being reviewed.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => setShowSubmitConfirmation(false)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Keep Reviewing
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={confirmSubmission}
+                className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSubmitting ? 'Submitting…' : 'Confirm Submission'}
+              </button>
+            </div>
+          </DynamicModal>
         </div>
       </div>
     );
   }
 export default CompleteApplication;
-
-
-
-
