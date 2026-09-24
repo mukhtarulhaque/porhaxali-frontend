@@ -4,17 +4,19 @@ import { Camera, Upload, User, Briefcase, FileText,
 import useAuth from "../../Hooks/UseAuth";
 import Input from "../commom/Input";
 import Label from "../commom/Label";
+import FacultyProfilePhoto from "./facultyComponents/FacultyProfilePhoto";
+import { getPhotoError, getAddressError, getDobError,
+    getGenderError, getQualificationError, getDepartmentError,
+    getDesignationError, getExperienceYearsError, getBiodataError } from "./facultyComponents/Validator";
 
 
 const CompleteApplication = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [photoPreview, setPhotoPreview] = useState(null);
-    const [isCameraActive, setIsCameraActive] = useState(false);
     const [documents, setDocuments] = useState([]);
-  
-    const videoRef = useRef(null);
-    const streamRef = useRef(null);
+
     const docInputRef = useRef(null);
+    const dateInputRef = useRef(null);
 
     const { auth} = useAuth(); 
     const [errors, setErrors] = useState({});
@@ -40,54 +42,6 @@ const CompleteApplication = () => {
       specialization: '',
       bio: '',
     });
-  
-    // --- Camera Operations ---
-    const startCamera = async () => {
-      try {
-        setIsCameraActive(true);
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
-          audio: false,
-        });
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        console.error('Camera access error:', err);
-        alert('Unable to access camera. Please verify device permissions.');
-        setIsCameraActive(false);
-      }
-    };
-  
-    const stopCamera = () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-      setIsCameraActive(false);
-    };
-  
-    const capturePhoto = () => {
-      if (videoRef.current) {
-        const canvas = document.createElement('canvas');
-        canvas.width = videoRef.current.videoWidth || 640;
-        canvas.height = videoRef.current.videoHeight || 480;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        setPhotoPreview(canvas.toDataURL('image/jpeg'));
-        stopCamera();
-      }
-    };
-  
-    const handlePhotoUpload = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        setPhotoPreview(URL.createObjectURL(file));
-        if (isCameraActive) stopCamera();
-      }
-    };
-  
     // --- Document Upload Operations ---
     const handleDocumentChange = (e) => {
       const selectedFiles = Array.from(e.target.files || []);
@@ -110,9 +64,14 @@ const CompleteApplication = () => {
     };
     const nextStep = () =>{
         if(currentStep === 1) {
+            const photoErr = getPhotoError(photoPreview);
             const dobError = getDobError(formData.dob);
             const genderError = getGenderError(formData.gender);
             const addressError = getAddressError(formData.address);
+            if (photoErr) {
+                setErrors((prev) => ({ ...prev, photo: photoErr }));
+                return; // Stop navigation
+              }
             if (dobError) {
                 setErrors((prev) => ({ ...prev, dob: dobError }));
                 return;
@@ -159,39 +118,22 @@ const CompleteApplication = () => {
                 return;
             }
             setCurrentStep((prev) => Math.min(prev + 1, 4));
-        }  
+        } 
+        if(currentStep === 3) {
+            setCurrentStep((prev) => Math.min(prev + 1, 4));
+        } 
     } 
     const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
   
-    const handleSubmit = (e) => {
-      e.preventDefault();
+const handleSubmit = (e) => {
+    e.preventDefault();
       console.log('Submission Payload:', {
         ...formData,
         photo: photoPreview,
         documents: documents.map((d) => d.name),
       });
-      alert('Bio-data along with documents submitted successfully!');
-    };
-  
-    useEffect(() => {
-      return () => {
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach((track) => track.stop());
-        }
-      };
-    }, []);
-  
-// 2. Pure validator function (does NOT call setState)
-const getAddressError = (value) => {
-  if (!value || !value.trim()) {
-    return 'Residential address is required.';
-  }
-  if (value.trim().length < 10) {
-    return 'Address must be at least 10 characters long.';
-  }
-  return '';
+    alert('Bio-data along with documents submitted successfully!');
 };
-
 // 3. Clear the error dynamically as the user types
 const handleInputChange = (e) => {
   const { name, value } = e.target;
@@ -203,40 +145,11 @@ const handleInputChange = (e) => {
   }
 };
 
-// 4. Validate when the user clicks/tabs away from the field
 const handleAddressBlur = (e) => {
   const errorMsg = getAddressError(e.target.value);
   setErrors((prev) => ({ ...prev, address: errorMsg }));
 };
  
-const dateInputRef = useRef(null);
-
-// Pure validator for Date of Birth
-const getDobError = (value) => {
-  if (!value) {
-    return 'Date of birth is required.';
-  }
-
-  const selectedDate = new Date(value);
-  const today = new Date();
-
-  if (isNaN(selectedDate.getTime())) {
-    return 'Please select a valid date.';
-  }
-
-  if (selectedDate > today) {
-    return 'Date of birth cannot be in the future.';
-  }
-
-  // Teacher eligibility check: Minimum 18 years old
-  const minAgeDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
-  if (selectedDate > minAgeDate) {
-    return 'Faculty member must be at least 18 years of age.';
-  }
-
-  return '';
-};
-
 const handleDobBlur = (e) => {
   const errorMsg = getDobError(e.target.value);
   setErrors((prev) => ({ ...prev, dob: errorMsg }));
@@ -252,91 +165,29 @@ const openDatePicker = () => {
     }
   }
 };
-// Validation function
-const getGenderError = (value) => {
-    if (!value || value.trim() === '') {
-      return 'Please select a gender.';
-    }
-    return '';
-  };
-  
+
 const handleGenderBlur = (e) => {
     const errorMsg = getGenderError(e.target.value);
     setErrors((prev) => ({ ...prev, gender: errorMsg }));
   };
 
-const getQualificationError = (value) => {
-    if (!value || !value.trim()) {
-      return 'Highest qualification is required.';
-    }
-    if (value.trim().length < 2) {
-      return 'Qualification must be at least 2 characters.';
-    }
-    return '';
-  };  
 const handleQualificationBlur = (e) => {
     const errorMsg = getQualificationError(e.target.value);
     setErrors((prev) => ({ ...prev, qualification: errorMsg }));
   };
  
-
-const getDepartmentError = (value) => {
-    if (!value || !value.trim()) {
-      return 'Department is required.';
-    }
-    if (value.trim().length < 2) {
-      return 'Department name must be at least 2 characters.';
-    }
-    return '';
-  };
 const handleDepartmentBlur = (e) => {
     const errorMsg = getDepartmentError(e.target.value);
     setErrors((prev) => ({ ...prev, department: errorMsg }));
   };
 
-const getDesignationError = (value) => {
-    if (!value || !value.trim()) {
-      return 'Designation is required.';
-    }
-    const trimmed = value.trim();
-    if (trimmed.length < 2) {
-      return 'Designation must be at least 2 characters long.';
-    }
-    if (trimmed.length > 80) {
-      return 'Designation cannot exceed 80 characters.';
-    }
-    if (!/[a-zA-Z]/.test(trimmed)) {
-      return 'Please enter a valid designation title.';
-    }
-    return '';
-};
+
 const handleDesignationBlur = (e) => {
     const errorMsg = getDesignationError(e.target.value);
     setErrors((prev) => ({ ...prev, designation: errorMsg }));
 };
 
-const getExperienceYearsError = (value) => {
-    // Convert number to string if needed and handle empty checks
-    const strVal = String(value ?? '').trim();
-  
-    if (!strVal) {
-      return 'Experience is required.';
-    }
-  
-    // 1. Must contain ONLY digits (0-9)
-    if (!/^\d+$/.test(strVal)) {
-      return 'Please enter only numbers.';
-    }
-  
-    // 2. Realistic range check (e.g., 0 to 60 years)
-    const years = parseInt(strVal, 10);
-    if (years < 0 || years > 60) {
-      return 'Experience must be between 0 and 60 years.';
-    }
-  
-    return '';
-  };
-  const handleExperienceYearsBlur = (e) => {
+const handleExperienceYearsBlur = (e) => {
     const errorMsg = getExperienceYearsError(e.target.value);
     setErrors((prev) => ({ ...prev, experienceYears: errorMsg }));
 };
@@ -360,28 +211,10 @@ const handleAreaSpecializationBlur = (e) => {
     const errorMsg = getAreaSpecializationError(e.target.value);
     setErrors((prev) => ({ ...prev, areaSpecialization: errorMsg }));
 };
-
-const getBiodataError = (value) => {
-    if (!value || !value.trim()) {
-      return 'Short Bio is required.';
-    }
-    const trimmed = value.trim();
-    if (trimmed.length < 15) {
-      return 'Short Bio must be at least 15 characters long.';
-    }
-    if (trimmed.length > 200) {
-      return 'Short Bio cannot exceed 200 characters.';
-    }
-    if (!/[a-zA-Z]/.test(trimmed)) {
-      return 'Please enter a valid short bio title.';
-    }
-    return '';
-};
 const handleBioBlur = (e) => {
     const errorMsg = getBiodataError(e.target.value);
     setErrors((prev) => ({ ...prev, biodata: errorMsg }));
 };
-
 
     return (
       <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
@@ -525,70 +358,13 @@ const handleBioBlur = (e) => {
             {/* STEP 1: Personal Details & Camera/Photo */}
             {currentStep === 1 && (
               <div className="space-y-6">
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-                  <label className="block text-sm font-semibold text-slate-800 mb-3">Profile Photograph</label>
-                  <div className="flex flex-col sm:flex-row items-center gap-6">
-                    <div className="relative w-36 h-36 rounded-2xl overflow-hidden bg-white border-2 border-dashed border-slate-300 flex items-center justify-center shadow-inner">
-                      {isCameraActive ? (
-                        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                      ) : photoPreview ? (
-                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="w-14 h-14 text-slate-300" />
-                      )}
-                    </div>
-  
-                    <div className="space-y-3 text-center sm:text-left">
-                      <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                        {!isCameraActive ? (
-                          <>
-                            <label className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 cursor-pointer shadow-sm transition">
-                              <Upload className="w-4 h-4 text-slate-500" /> Upload File
-                              <input type="file" accept="image/*" className="sr-only" onChange={handlePhotoUpload} />
-                            </label>
-  
-                            <button
-                              type="button"
-                              onClick={startCamera}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 text-sm font-medium rounded-lg hover:bg-blue-100 transition"
-                            >
-                              <Camera className="w-4 h-4" /> Use Camera
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={capturePhoto}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
-                            >
-                              <Camera className="w-4 h-4" /> Snap Photo
-                            </button>
-                            <button
-                              type="button"
-                              onClick={stopCamera}
-                              className="inline-flex items-center gap-2 px-3 py-2 bg-rose-50 text-rose-600 border border-rose-200 text-sm font-medium rounded-lg hover:bg-rose-100 transition"
-                            >
-                              <X className="w-4 h-4" /> Cancel
-                            </button>
-                          </>
-                        )}
-  
-                        {photoPreview && !isCameraActive && (
-                          <button
-                            type="button"
-                            onClick={() => setPhotoPreview(null)}
-                            className="inline-flex items-center gap-1 px-3 py-2 text-rose-600 text-xs font-medium hover:underline"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" /> Remove Photo
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500">Capture using your camera or upload PNG/JPG (Max 5MB).</p>
-                    </div>
-                  </div>
-                </div>
-  
+                <FacultyProfilePhoto
+                    photoPreview={photoPreview}
+                    setPhotoPreview={setPhotoPreview}
+                    error={errors?.photo}
+                    setError={(msg) => setErrors((prev) => ({ ...prev, photo: msg }))}
+                    clearError={() => setErrors((prev) => ({ ...prev, photo: '' }))}
+                />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="font-montserrat">
                     <Label htmlFor="fullName" nameOfLabel="Full Name"/>
@@ -608,7 +384,6 @@ const handleBioBlur = (e) => {
                         id="phone" value={auth.phone} autoComplete="off" type="phone" readOnly disabled={true}
                     />
                   </div>
-
                 <div className="w-full font-montserrat">
                     <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-600">
                         Date of Birth <span className="text-rose-500">*</span>
@@ -875,7 +650,7 @@ const handleBioBlur = (e) => {
                         value={formData.experienceYears || ''}
                         onChange={handleInputChange}
                         onBlur={handleExperienceYearsBlur}
-                        placeholder="e.g. Assistant Professor"
+                        placeholder="e.g. 6"
                         className={`mt-2 w-full rounded-xl border px-4 py-3.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 disabled:cursor-wait disabled:opacity-70 ${
                             errors?.experienceYears
                                     ? 'border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
@@ -926,17 +701,6 @@ const handleBioBlur = (e) => {
                          </p>
                     )}
                 </div>
-                {/* <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Short Bio</label>
-                  <textarea
-                    name="bio"
-                    rows={3}
-                    value={formData.bio}
-                    onChange={handleInputChange}
-                    placeholder="Summary of research or teaching background..."
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  />
-                </div> */}
                  <div className="w-full font-montserrat sm:col-span-2">
                         <div className="flex items-center justify-between">
                             <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
@@ -1072,12 +836,12 @@ const handleBioBlur = (e) => {
                     <div>
                       <p className="text-sm font-bold text-slate-800">{formData.fullName || 'Not provided'}</p>
                       <p className="text-xs text-slate-500">{formData.designation || 'Designation'} • {formData.department || 'Department'}</p>
-                      <p className="text-xs text-slate-500">{formData.email || 'Email'}</p>
+                      <p className="text-xs text-slate-500">{auth.userEmail || 'Email'}</p>
                     </div>
                   </div>
   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 pt-2 border-t border-slate-200">
-                    <p><span className="font-semibold text-slate-700">Phone:</span> {formData.phone || '—'}</p>
+                    <p><span className="font-semibold text-slate-700">Phone:</span> {auth.phone || '—'}</p>
                     <p><span className="font-semibold text-slate-700">Qualification:</span> {formData.qualification || '—'}</p>
                     <p><span className="font-semibold text-slate-700">Specialization:</span> {formData.specialization || '—'}</p>
                     <p><span className="font-semibold text-slate-700">Experience:</span> {formData.experienceYears ? `${formData.experienceYears} Years` : '—'}</p>
