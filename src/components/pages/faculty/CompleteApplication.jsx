@@ -12,6 +12,7 @@ import DynamicModal from '../commom/Modals/DynamicModal';
 import {
     createMyApplication,
     getMyApplication,
+    getProfilePhotoViewUrl,
     submitMyApplication,
     updateMyApplication,
 } from '../../../api/InstructorApplication';
@@ -104,6 +105,25 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
       initialize();
       return () => { active = false; };
     }, [navigate, readOnly]);
+
+    useEffect(() => {
+      if (currentStep !== 4 || !application?.profilePhotoPresent) return undefined;
+
+      let active = true;
+      getProfilePhotoViewUrl()
+        .then((view) => {
+          if (active) setPhotoPreview(view.url);
+        })
+        .catch((error) => {
+          console.error('Unable to load profile photo for application review', error);
+        });
+
+      return () => { active = false; };
+    }, [
+      application?.profilePhotoOriginalFileName,
+      application?.profilePhotoPresent,
+      currentStep,
+    ]);
 
     const saveDraft = async () => {
       if (application?.applicationStatus !== 'DRAFT') {
