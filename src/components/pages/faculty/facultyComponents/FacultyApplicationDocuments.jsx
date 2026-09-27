@@ -23,7 +23,7 @@ const friendlyDeleteError = (error) => error.response?.status === 403
     ? 'Unable to delete this document at the moment.'
     : apiMessage(error, 'Unable to delete this document.');
 
-export default function FacultyApplicationDocuments({ documents, isDraft, onRefresh }) {
+export default function FacultyApplicationDocuments({ documents, isEditable, onRefresh }) {
     const [selectedFiles, setSelectedFiles] = useState({});
     const [operations, setOperations] = useState({});
     const [requiredTypes, setRequiredTypes] = useState([]);
@@ -133,8 +133,8 @@ export default function FacultyApplicationDocuments({ documents, isDraft, onRefr
             </p>
         </div>
 
-        {!isDraft && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-            Documents can only be changed while the application is in DRAFT status.
+        {!isEditable && <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+            Documents cannot be changed in the current application status.
         </p>}
 
         {typesError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">{typesError}</p>}
@@ -149,7 +149,7 @@ export default function FacultyApplicationDocuments({ documents, isDraft, onRefr
                     documents={persisted}
                     selectedFile={selectedFiles[code]}
                     operation={operations[code]}
-                    disabled={!isDraft}
+                    disabled={!isEditable}
                     onSelect={(file) => {
                         setSelectedFiles((current) => ({ ...current, [code]: file }));
                         setOperation(code, null);
