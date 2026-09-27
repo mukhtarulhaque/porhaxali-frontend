@@ -8,21 +8,38 @@ import Label from "../commom/Label";
 import FacultyProfilePhoto from "./facultyComponents/FacultyProfilePhoto";
 import { getAddressError, getDobError, getExperienceYearsError, getBiodataError } from "./facultyComponents/Validator";
 import FacultyApplicationDocuments from './facultyComponents/FacultyApplicationDocuments';
+import FacultyQualifications from './facultyComponents/FacultyQualifications';
 import FacultyRequestedSubjects from './facultyComponents/FacultyRequestedSubjects';
 import DynamicModal from '../commom/Modals/DynamicModal';
 import {
     createMyApplication,
+    createMyQualification,
+    deleteMyQualification,
     getActiveSubjects,
     getMyApplication,
     getProfilePhotoViewUrl,
     submitMyApplication,
     updateMyApplication,
+    updateMyQualification,
     updateMyRequestedSubjects,
 } from '../../../api/InstructorApplication';
 import { EMPTY_APPLICATION } from './instructorApplicationConfig';
 
 const apiMessage = (error, fallback) => error.response?.data?.message ?? fallback;
 const isEditableStatus = (status) => status === 'DRAFT' || status === 'CHANGES_REQUESTED';
+let qualificationSequence = 0;
+const toQualificationFormValue = (qualification = {}) => ({
+  clientId: qualification.id ? `qualification-${qualification.id}` : `new-qualification-${++qualificationSequence}`,
+  id: qualification.id ?? null,
+  qualificationName: qualification.qualificationName ?? '',
+  institutionName: qualification.institutionName ?? '',
+  specialization: qualification.specialization ?? '',
+  completionYear: qualification.completionYear ?? '',
+});
+const isQualificationEmpty = (qualification) => !qualification.qualificationName?.trim()
+  && !qualification.institutionName?.trim()
+  && !qualification.specialization?.trim()
+  && String(qualification.completionYear ?? '').trim() === '';
 
 const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
     const [currentStep, setCurrentStep] = useState(initialStep);
@@ -37,6 +54,9 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
     const [selectedSubjectIds, setSelectedSubjectIds] = useState([]);
     const [isLoadingSubjects, setIsLoadingSubjects] = useState(true);
     const [subjectLoadError, setSubjectLoadError] = useState('');
+    const [qualifications, setQualifications] = useState([toQualificationFormValue()]);
+    const [removedQualificationIds, setRemovedQualificationIds] = useState([]);
+    const [qualificationErrors, setQualificationErrors] = useState({});
 
     const dateInputRef = useRef(null);
     const navigate = useNavigate();
@@ -67,6 +87,8 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
       setApplication(loaded);
       if (loaded.applicationStatus && !isEditableStatus(loaded.applicationStatus)) setCurrentStep(4);
       setSelectedSubjectIds((loaded.subjects ?? []).map((subject) => subject.subjectId));
+      setQualifications((loaded.qualifications?.length ? loaded.qualifications : [{}]).map(toQualificationFormValue));
+      setRemovedQualificationIds([]);
       setFormData((current) => ({
         ...current,
         fullName: loaded.applicantName ?? current.fullName,
@@ -82,6 +104,28 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
     };
 
     const refreshApplication = async () => applyServerApplication(await getMyApplication());
+
+    const persistQualifications = async () => {
+      const qualificationIdsToDelete = new Set([
+        ...removedQualificationIds,
+        ...qualifications.filter((item) => item.id && isQualificationEmpty(item)).map((item) => item.id),
+      ]);
+      await Promise.all([...qualificationIdsToDelete]
+        .map((qualificationId) => deleteMyQualification(qualificationId)));
+      const savedQualifications = [];
+      for (const qualification of qualifications.filter((item) => !isQualificationEmpty(item))) {
+        const payload = {
+          qualificationName: qualification.qualificationName.trim() || null,
+          institutionName: qualification.institutionName.trim() || null,
+          specialization: qualification.specialization.trim() || null,
+          completionYear: qualification.completionYear === '' ? null : Number(qualification.completionYear),
+        };
+        savedQualifications.push(qualification.id
+          ? await updateMyQualification(qualification.id, payload)
+          : await createMyQualification(payload));
+      }
+      return savedQualifications;
+    };
 
     const loadSubjects = async () => {
       setIsLoadingSubjects(true);
@@ -179,7 +223,12 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
           bio: formData.bio.trim() || null,
         });
         const savedSubjects = await updateMyRequestedSubjects(selectedSubjectIds);
-        applyServerApplication({ ...saved, subjects: savedSubjects });
+        const savedQualifications = await persistQualifications();
+        applyServerApplication({
+          ...saved,
+          subjects: savedSubjects,
+          qualifications: savedQualifications,
+        });
         setApplicationMessage({
           type: 'success',
           text: application.applicationStatus === 'CHANGES_REQUESTED'
@@ -217,6 +266,24 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
         if(currentStep === 2) {
             const experiYrError = getExperienceYearsError(formData.experienceYears);
             const biodataError = getBiodataError(formData.bio);
+            const nextQualificationErrors = {};
+            const enteredQualifications = qualifications.filter((qualification) => !isQualificationEmpty(qualification));
+            if (enteredQualifications.length === 0) {
+              nextQualificationErrors.summary = 'Add at least one academic qualification.';
+            }
+            enteredQualifications.forEach((qualification) => {
+              const name = qualification.qualificationName?.trim();
+              const completionYear = Number(qualification.completionYear);
+              if (!name) {
+                nextQualificationErrors[qualification.clientId] = 'Qualification name is required.';
+              } else if (qualification.completionYear !== ''
+                && (!Number.isInteger(completionYear)
+                  || completionYear < 1000
+                  || completionYear > new Date().getFullYear())) {
+                nextQualificationErrors[qualification.clientId] = `Completion year must be between 1000 and ${new Date().getFullYear()}.`;
+              }
+            });
+            setQualificationErrors(nextQualificationErrors);
             if(experiYrError) {
                 setErrors((prev) => ({ ...prev, experienceYears: experiYrError}));
                 return;
@@ -225,6 +292,7 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
                 setErrors((prev) => ({ ...prev, biodata: biodataError}));
                 return;
             }
+            if (Object.keys(nextQualificationErrors).length > 0) return;
             if (await saveDraft()) setCurrentStep((prev) => Math.min(prev + 1, 4));
         } 
         if(currentStep === 3) {
@@ -272,6 +340,27 @@ const handleSubjectToggle = (subjectId) => {
     ? current.filter((id) => id !== subjectId)
     : [...current, subjectId]);
   setErrors((current) => ({ ...current, requestedSubjects: '' }));
+};
+
+const handleQualificationChange = (clientId, field, value) => {
+  setQualifications((current) => current.map((qualification) => qualification.clientId === clientId
+    ? { ...qualification, [field]: value }
+    : qualification));
+  setQualificationErrors((current) => ({ ...current, [clientId]: '', summary: '' }));
+};
+
+const addQualification = () => {
+  setQualifications((current) => [...current, toQualificationFormValue()]);
+};
+
+const removeQualification = (clientId) => {
+  const removed = qualifications.find((qualification) => qualification.clientId === clientId);
+  if (removed?.id) setRemovedQualificationIds((ids) => [...ids, removed.id]);
+  setQualifications((current) => {
+    const remaining = current.filter((qualification) => qualification.clientId !== clientId);
+    return remaining.length ? remaining : [toQualificationFormValue()];
+  });
+  setQualificationErrors((current) => ({ ...current, [clientId]: '', summary: '' }));
 };
 
 const subjectOptions = [
@@ -718,6 +807,14 @@ const handleBioBlur = (e) => {
                              </p>
                             )}
                     </div>
+                    <FacultyQualifications
+                      qualifications={qualifications}
+                      isEditable={isEditable}
+                      errors={qualificationErrors}
+                      onChange={handleQualificationChange}
+                      onAdd={addQualification}
+                      onRemove={removeQualification}
+                    />
                     <FacultyRequestedSubjects
                       subjects={subjectOptions}
                       selectedSubjectIds={selectedSubjectIds}
@@ -780,6 +877,24 @@ const handleBioBlur = (e) => {
                     <p className="sm:col-span-2"><span className="font-semibold text-slate-700">Bio:</span> {formData.bio || '—'}</p>
                   </div>
   
+                  <div className="pt-2 border-t border-slate-200">
+                    <p className="text-xs font-semibold text-slate-700 mb-1">Academic Qualifications:</p>
+                    {(application?.qualifications?.length ?? 0) > 0 ? (
+                      <ul className="space-y-1 text-xs text-slate-600">
+                        {application.qualifications.map((qualification) => (
+                          <li key={qualification.id}>
+                            <span className="font-semibold text-slate-700">{qualification.qualificationName}</span>
+                            {qualification.specialization ? ` — ${qualification.specialization}` : ''}
+                            {qualification.institutionName ? `, ${qualification.institutionName}` : ''}
+                            {qualification.completionYear ? ` (${qualification.completionYear})` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">No qualifications added.</p>
+                    )}
+                  </div>
+
                   <div className="pt-2 border-t border-slate-200">
                     <p className="text-xs font-semibold text-slate-700 mb-1">Requested Subjects:</p>
                     {(application?.subjects?.length ?? 0) > 0 ? (
