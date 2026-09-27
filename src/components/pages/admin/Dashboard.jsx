@@ -1,159 +1,88 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from 'react';
+import { ArrowRight, ClipboardCheck, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { getInstructorApplicationCounts } from '../../../api/AdminInstructorApplications';
+import Sidebar from '../student/Sidebar';
+import { adminTabs } from '../commom/CommonArrays';
 
-import Sidebar from "../student/Sidebar";
-import {adminTabs} from '../commom/CommonArrays'
+export default function Dashboard() {
+  const [requestVersion, setRequestVersion] = useState(0);
+  const [requestState, setRequestState] = useState({ counts: null, error: false, version: -1 });
+  const isLoading = requestState.version !== requestVersion;
+  const { counts, error } = requestState;
 
+  useEffect(() => {
+    let active = true;
+    getInstructorApplicationCounts()
+      .then((response) => {
+        if (active) setRequestState({ counts: response, error: false, version: requestVersion });
+      })
+      .catch((requestError) => {
+        console.error('Unable to load instructor application counts', requestError);
+        if (active) setRequestState({ counts: null, error: true, version: requestVersion });
+      });
 
-const Dashboard = () => {
-  const [currentView, setCurrentView] = useState("courses"); // views: dashboard, courses, students, teachers
-  
-
-  
-
-  const [students, setStudents] = useState([
-    { id: "S501", name: "Rahul Kalita", email: "rahul@mail.com", class: "Class 10" },
-    { id: "S502", name: "Sneha Sarma", email: "sneha@mail.com", class: "Olympiad Cohort" },
-  ]);
-
-  const [teachers, setTeachers] = useState([
-    { id: "T301", name: "Dr. Ananya Baruah", department: "Mathematics", experience: "10+ Years" },
-    { id: "T302", name: "Rahul Sharma", department: "Physics", experience: "8 Years" },
-  ]);
-
-  // Handlers placeholder triggers
-  const handleAdd = (type) => alert(`Open "Add New ${type}" Modal / Route`);
-  const handleEdit = (type, id) => alert(`Edit ${type} with ID: ${id}`);
-  const handleDelete = (type, id) => {
-    if (window.confirm(`Are you sure you want to delete this ${type}?`)) {
-      if (type === "course") setCourses(courses.filter(c => c.id !== id));
-      if (type === "student") setStudents(students.filter(s => s.id !== id));
-      if (type === "teacher") setTeachers(teachers.filter(t => t.id !== id));
-    }
-  };
-
-  
-  
+    return () => { active = false; };
+  }, [requestVersion]);
 
   return (
-    <div className="flex min-h-screen bg-gray-50 text-gray-800 font-montserrat">
-      
-     
-        <Sidebar pageId="adminDashboard" tabs={adminTabs}/>
-       
+    <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50 font-montserrat text-slate-800">
+      <Sidebar pageId="adminDashboard" tabs={adminTabs} />
+      <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-pink-700">Administration</p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Overview System</h1>
+            <p className="mt-2 text-sm text-slate-600">Monitor the review queue and manage Porhaxali operations.</p>
+          </div>
 
-      {/* MAIN CONTENT CONTAINER */}
-      <main className="flex-1">
-        <div className="p-8">
-          
-          {/* VIEW: OVERVIEW DASHBOARD */}
-          {currentView === "dashboard" && (
-            <div>
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-8">
-                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                  <p className="text-sm font-medium text-gray-400 uppercase">Active Curriculums</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{courses.length}</p>
-                </div>
-                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                  <p className="text-sm font-medium text-gray-400 uppercase">Enrolled Scholars</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{students.length}</p>
-                </div>
-                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-                  <p className="text-sm font-medium text-gray-400 uppercase">Academic Mentors</p>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">{teachers.length}</p>
-                </div>
+          <div className="mt-7 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {isLoading ? (
+              <div className="h-56 animate-pulse rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-label="Loading instructor application review count" aria-busy="true">
+                <div className="h-11 w-11 rounded-xl bg-slate-100" />
+                <div className="mt-5 h-4 w-40 rounded bg-slate-100" />
+                <div className="mt-3 h-9 w-28 rounded bg-slate-100" />
+                <div className="mt-5 h-4 w-52 rounded bg-slate-100" />
               </div>
-              <div className="rounded-2xl border border-dashed border-gray-200 p-12 text-center text-gray-400 bg-white">
-                Select specific database vectors from the sidebar navigation panel to begin CRUD allocations.
-              </div>
-            </div>
-          )}
-
-          
-
-          {/* VIEW: STUDENTS CRUD */}
-          {currentView === "students" && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Registered Scholars</h2>
-                  <p className="text-sm text-gray-400">Inspect classroom diagnostics or discharge entries.</p>
+            ) : error ? (
+              <section role="alert" className="rounded-2xl border border-rose-200 bg-white p-6 shadow-sm">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-50 text-rose-700">
+                  <ClipboardCheck className="h-5 w-5" />
                 </div>
-                <button onClick={() => handleAdd("Student")} className="rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-gray-800 active:scale-95 shadow-sm">
-                  + Admit Student
+                <h2 className="mt-5 text-lg font-bold text-slate-900">Instructor Applications</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">The pending review count is temporarily unavailable.</p>
+                <button
+                  type="button"
+                  onClick={() => setRequestVersion((version) => version + 1)}
+                  className="mt-5 inline-flex items-center gap-2 rounded-lg text-sm font-bold text-rose-700 focus:outline-none focus:ring-4 focus:ring-rose-100"
+                >
+                  <RefreshCw className="h-4 w-4" /> Try again
                 </button>
-              </div>
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                    <th className="p-4 pl-6">ID</th>
-                    <th className="p-4">Full Name</th>
-                    <th className="p-4">Email Address</th>
-                    <th className="p-4">Standard</th>
-                    <th className="p-4 pr-6 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-sm font-medium">
-                  {students.map((student) => (
-                    <tr key={student.id} className="hover:bg-gray-50/70">
-                      <td className="p-4 pl-6 font-mono text-xs text-gray-400">{student.id}</td>
-                      <td className="p-4 font-bold text-gray-900">{student.name}</td>
-                      <td className="p-4 text-gray-500">{student.email}</td>
-                      <td className="p-4 text-gray-600">{student.class}</td>
-                      <td className="p-4 pr-6 text-right space-x-2">
-                        <button onClick={() => handleEdit("student", student.id)} className="text-xs font-semibold text-blue-600 hover:underline">Modify</button>
-                        <button onClick={() => handleDelete("student", student.id)} className="text-xs font-semibold text-red-500 hover:underline">Expel</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* VIEW: TEACHERS CRUD */}
-          {currentView === "teachers" && (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Faculty Assignments</h2>
-                  <p className="text-sm text-gray-400">Onboard verified academic heads or track experience tenure.</p>
+              </section>
+            ) : (
+              <Link
+                to="/admin/instructor-applications"
+                aria-label={`${counts.totalPendingReview} instructor applications pending review. View instructor applications.`}
+                className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-pink-200 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-pink-100"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-pink-100 text-pink-700">
+                    <ClipboardCheck className="h-5 w-5" />
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-pink-600" />
                 </div>
-                <button onClick={() => handleAdd("Teacher")} className="rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-gray-800 active:scale-95 shadow-sm">
-                  + Onboard Faculty
-                </button>
-              </div>
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 text-xs font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                    <th className="p-4 pl-6">ID</th>
-                    <th className="p-4">Name</th>
-                    <th className="p-4">Department</th>
-                    <th className="p-4">Tenure Stats</th>
-                    <th className="p-4 pr-6 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-sm font-medium">
-                  {teachers.map((teacher) => (
-                    <tr key={teacher.id} className="hover:bg-gray-50/70">
-                      <td className="p-4 pl-6 font-mono text-xs text-gray-400">{teacher.id}</td>
-                      <td className="p-4 font-bold text-gray-900">{teacher.name}</td>
-                      <td className="p-4 text-gray-500">{teacher.department}</td>
-                      <td className="p-4 text-gray-600">{teacher.experience}</td>
-                      <td className="p-4 pr-6 text-right space-x-2">
-                        <button onClick={() => handleEdit("teacher", teacher.id)} className="text-xs font-semibold text-blue-600 hover:underline">Edit Info</button>
-                        <button onClick={() => handleDelete("teacher", teacher.id)} className="text-xs font-semibold text-red-500 hover:underline">Resign</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
+                <p className="mt-5 text-sm font-bold text-slate-900">Instructor Applications</p>
+                <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900">{counts.totalPendingReview}</p>
+                <p className="text-sm font-medium text-slate-500">pending review</p>
+                <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4 text-xs font-semibold text-slate-600">
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{counts.submitted} Submitted</span>
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">{counts.underReview} Under Review</span>
+                </div>
+              </Link>
+            )}
+          </div>
         </div>
       </main>
     </div>
   );
-};
-
-export default Dashboard;
+}

@@ -21,6 +21,8 @@ import FacultyDashboard from './components/pages/faculty/FacultyDashboard';
 import CompleteApplication from './components/pages/faculty/CompleteApplication';
 import RequireRole from './components/auth/RequireRole';
 import InstructorApplicationStatus from './components/pages/faculty/InstructorApplicationStatus';
+import InstructorApplications from './components/pages/admin/InstructorApplications';
+import InstructorApplicationReview from './components/pages/admin/InstructorApplicationReview';
 
 function App() {
   return (
@@ -40,7 +42,6 @@ function App() {
         {/* protected routes*/}
         <Route element={<RequireAuth />}>
           <Route path='/authUser' element={<AuthHome />}></Route>
-          <Route path='/adminDashboard' element={<Dashboard/>}></Route>
           <Route path='/courses' element={<CoursesPage />}></Route>
           <Route path='/dashboard' element={<StudentDashboard />}></Route>
           <Route path='/liveSessions' element={<LiveSessions/>}></Route>
@@ -48,8 +49,13 @@ function App() {
           <Route path='/profileSetting' element={<ProfileSettings/>}></Route>
           <Route path='/student/profile' element={<Navigate to="/profileSetting" replace />}></Route>
           {/* Admin routes */}
-          <Route path='/allCourses' element={<AllCourses/>}></Route>
-          <Route path='/allStudents' element={<AllStudents/>}></Route>
+          <Route element={<RequireRole role="ADMIN" />}>
+            <Route path='/adminDashboard' element={<Dashboard/>}></Route>
+            <Route path='/allCourses' element={<AllCourses/>}></Route>
+            <Route path='/allStudents' element={<AllStudents/>}></Route>
+            <Route path='/admin/instructor-applications' element={<InstructorApplications/>}></Route>
+            <Route path='/admin/instructor-applications/:applicationId/review' element={<InstructorApplicationReview/>}></Route>
+          </Route>
           {/* Faculty Routes */}
           <Route path='/facultyDashboard' element={<FacultyDashboard/>}></Route>
           <Route element={<RequireRole role="INSTRUCTOR_APPLICANT" />}>
