@@ -263,6 +263,14 @@ export default function InstructorApplicationStatus() {
               <dd className="mt-1 text-sm font-semibold text-slate-800">{application.documents?.length ?? 0}</dd>
             </div>
             <div className="sm:col-span-2">
+              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Academic Qualifications</dt>
+              <dd className="mt-1 text-sm font-semibold text-slate-800">
+                {application.qualifications?.length
+                  ? application.qualifications.map((qualification) => qualification.qualificationName).filter(Boolean).join(', ')
+                  : 'None added'}
+              </dd>
+            </div>
+            <div className="sm:col-span-2">
               <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Requested Subjects</dt>
               <dd className="mt-1 text-sm font-semibold text-slate-800">
                 {application.subjects?.length

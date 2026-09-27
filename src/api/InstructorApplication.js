@@ -23,6 +23,15 @@ export const getActiveSubjects = async () => data(await Axios.get(GET_SUBJECTS))
 export const updateMyRequestedSubjects = async (subjectIds) =>
     data(await Axios.put(`${MY_INSTRUCTOR_APPLICATION}/subjects`, { subjectIds }));
 
+export const createMyQualification = async (qualification) =>
+    data(await Axios.post(`${MY_INSTRUCTOR_APPLICATION}/qualifications`, qualification));
+
+export const updateMyQualification = async (qualificationId, qualification) =>
+    data(await Axios.put(`${MY_INSTRUCTOR_APPLICATION}/qualifications/${qualificationId}`, qualification));
+
+export const deleteMyQualification = async (qualificationId) =>
+    Axios.delete(`${MY_INSTRUCTOR_APPLICATION}/qualifications/${qualificationId}`);
+
 export const submitMyApplication = async () =>
     data(await Axios.post(INSTRUCTOR_APPLICATION_SUBMIT_URL));
 
