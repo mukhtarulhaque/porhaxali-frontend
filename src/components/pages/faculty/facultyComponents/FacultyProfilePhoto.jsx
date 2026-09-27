@@ -10,7 +10,7 @@ import { validateProfilePhotoFile } from '../instructorApplicationConfig';
 
 const apiMessage = (error, fallback) => error.response?.data?.message ?? fallback;
 
-const FacultyProfilePhoto = ({ application, isDraft, photoPreview, setPhotoPreview, onRefresh }) => {
+const FacultyProfilePhoto = ({ application, isEditable, photoPreview, setPhotoPreview, onRefresh }) => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [operation, setOperation] = useState(null);
   const videoRef = useRef(null);
@@ -137,19 +137,19 @@ const FacultyProfilePhoto = ({ application, isDraft, photoPreview, setPhotoPrevi
         </div>
 
         <div className="space-y-3 text-center sm:text-left">
-          {isDraft && <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
+          {isEditable && <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
             {!isCameraActive ? (
               <>
-                <label className={`inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 ${!isDraft || busy ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                <label className={`inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-xs transition hover:bg-slate-50 ${!isEditable || busy ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                   {application?.profilePhotoPresent ? <RefreshCw className="h-4 w-4 text-slate-500" /> : <Upload className="h-4 w-4 text-slate-500" />}
                   {application?.profilePhotoPresent ? 'Replace Photo' : 'Upload File'}
-                  <input type="file" accept="image/jpeg,image/png" className="sr-only" disabled={!isDraft || busy} onChange={(event) => {
+                  <input type="file" accept="image/jpeg,image/png" className="sr-only" disabled={!isEditable || busy} onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (file) persistPhoto(file);
                     event.target.value = '';
                   }} />
                 </label>
-                <button type="button" disabled={!isDraft || busy} onClick={startCamera} className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="button" disabled={!isEditable || busy} onClick={startCamera} className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
                   <Camera className="h-4 w-4" /> Use Camera
                 </button>
               </>
@@ -165,7 +165,7 @@ const FacultyProfilePhoto = ({ application, isDraft, photoPreview, setPhotoPrevi
             )}
           </div>}
           <p className="text-xs text-slate-500">Capture with your webcam or upload PNG/JPG (Maximum file size: 2 MB).</p>
-          {!isDraft && <p className="text-xs text-amber-700">The photo can only be changed while the application is in DRAFT status.</p>}
+          {!isEditable && <p className="text-xs text-amber-700">The photo cannot be changed in the current application status.</p>}
           {operation && <p role={operation.phase === 'error' ? 'alert' : 'status'} className={`text-xs ${operation.phase === 'error' ? 'text-rose-600' : operation.phase === 'success' ? 'text-emerald-700' : 'text-blue-700'}`}>{operation.message}</p>}
         </div>
       </div>

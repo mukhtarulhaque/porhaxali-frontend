@@ -4,6 +4,7 @@ import {
     INSTRUCTOR_APPLICATION_SUBMIT_URL,
     INSTRUCTOR_PROFILE_PHOTO_URL,
     INSTRUCTOR_REQUIRED_DOCUMENT_TYPES_URL,
+    GET_SUBJECTS,
     MY_INSTRUCTOR_APPLICATION,
 } from './Urls';
 
@@ -16,6 +17,11 @@ export const createMyApplication = async (application) =>
 
 export const updateMyApplication = async (application) =>
     data(await Axios.put(MY_INSTRUCTOR_APPLICATION, application));
+
+export const getActiveSubjects = async () => data(await Axios.get(GET_SUBJECTS));
+
+export const updateMyRequestedSubjects = async (subjectIds) =>
+    data(await Axios.put(`${MY_INSTRUCTOR_APPLICATION}/subjects`, { subjectIds }));
 
 export const submitMyApplication = async () =>
     data(await Axios.post(INSTRUCTOR_APPLICATION_SUBMIT_URL));

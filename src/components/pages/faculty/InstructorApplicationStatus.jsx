@@ -35,6 +35,13 @@ const STATUS_CONTENT = {
     iconClasses: 'border-blue-200 bg-blue-50 text-blue-700',
     badgeClasses: 'border-blue-200 bg-blue-50 text-blue-700',
   },
+  CHANGES_REQUESTED: {
+    title: 'Changes Requested',
+    description: 'The review team requested corrections. Update your application and resubmit it when ready.',
+    icon: FilePenLine,
+    iconClasses: 'border-amber-200 bg-amber-50 text-amber-700',
+    badgeClasses: 'border-amber-200 bg-amber-50 text-amber-700',
+  },
   APPROVED: {
     title: 'Application Approved',
     description: 'Your instructor application has been approved.',
@@ -174,7 +181,7 @@ export default function InstructorApplicationStatus() {
   const status = application.applicationStatus;
   const content = STATUS_CONTENT[status] ?? FALLBACK_STATUS_CONTENT;
   const StatusIcon = content.icon;
-  const isDraft = status === 'DRAFT';
+  const isEditable = status === 'DRAFT' || status === 'CHANGES_REQUESTED';
 
   return (
     <main className="min-h-[calc(100vh-4rem)] bg-slate-50 px-4 py-8 font-montserrat sm:px-6 sm:py-12 lg:px-8">
@@ -209,6 +216,12 @@ export default function InstructorApplicationStatus() {
             <div className="border-t border-rose-100 bg-rose-50/70 px-6 py-5 sm:px-9">
               <p className="text-xs font-bold uppercase tracking-wider text-rose-700">Reason provided</p>
               <p className="mt-2 text-sm leading-6 text-rose-900">{application.rejectionReason}</p>
+            </div>
+          )}
+          {status === 'CHANGES_REQUESTED' && application.adminRemarks && (
+            <div className="border-t border-amber-100 bg-amber-50/70 px-6 py-5 sm:px-9">
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Requested corrections</p>
+              <p className="mt-2 text-sm leading-6 text-amber-900">{application.adminRemarks}</p>
             </div>
           )}
         </section>
@@ -249,16 +262,24 @@ export default function InstructorApplicationStatus() {
               <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Attached Documents</dt>
               <dd className="mt-1 text-sm font-semibold text-slate-800">{application.documents?.length ?? 0}</dd>
             </div>
+            <div className="sm:col-span-2">
+              <dt className="text-xs font-bold uppercase tracking-wider text-slate-400">Requested Subjects</dt>
+              <dd className="mt-1 text-sm font-semibold text-slate-800">
+                {application.subjects?.length
+                  ? application.subjects.map((subject) => subject.subjectName).join(', ')
+                  : 'None selected'}
+              </dd>
+            </div>
           </dl>
 
           <div className="mt-8 flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row">
-            {isDraft ? (
+            {isEditable ? (
               <Link
                 to="/completeFacultyApplication"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-700/20"
               >
                 <FilePenLine className="h-4 w-4" />
-                Continue Application
+                {status === 'CHANGES_REQUESTED' ? 'Make Corrections' : 'Continue Application'}
               </Link>
             ) : (
               <Link

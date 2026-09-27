@@ -8,17 +8,21 @@ import Label from "../commom/Label";
 import FacultyProfilePhoto from "./facultyComponents/FacultyProfilePhoto";
 import { getAddressError, getDobError, getExperienceYearsError, getBiodataError } from "./facultyComponents/Validator";
 import FacultyApplicationDocuments from './facultyComponents/FacultyApplicationDocuments';
+import FacultyRequestedSubjects from './facultyComponents/FacultyRequestedSubjects';
 import DynamicModal from '../commom/Modals/DynamicModal';
 import {
     createMyApplication,
+    getActiveSubjects,
     getMyApplication,
     getProfilePhotoViewUrl,
     submitMyApplication,
     updateMyApplication,
+    updateMyRequestedSubjects,
 } from '../../../api/InstructorApplication';
 import { EMPTY_APPLICATION } from './instructorApplicationConfig';
 
 const apiMessage = (error, fallback) => error.response?.data?.message ?? fallback;
+const isEditableStatus = (status) => status === 'DRAFT' || status === 'CHANGES_REQUESTED';
 
 const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
     const [currentStep, setCurrentStep] = useState(initialStep);
@@ -29,13 +33,17 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
     const [applicationMessage, setApplicationMessage] = useState(null);
+    const [activeSubjects, setActiveSubjects] = useState([]);
+    const [selectedSubjectIds, setSelectedSubjectIds] = useState([]);
+    const [isLoadingSubjects, setIsLoadingSubjects] = useState(true);
+    const [subjectLoadError, setSubjectLoadError] = useState('');
 
     const dateInputRef = useRef(null);
     const navigate = useNavigate();
 
     const { auth} = useAuth(); 
     const [errors, setErrors] = useState({});
-    const isDraft = application?.applicationStatus === 'DRAFT';
+    const isEditable = isEditableStatus(application?.applicationStatus);
 
     const steps = [
         { id: 1, name: 'Personal & Photo', icon: User },
@@ -57,7 +65,8 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
 
     const applyServerApplication = (loaded) => {
       setApplication(loaded);
-      if (loaded.applicationStatus && loaded.applicationStatus !== 'DRAFT') setCurrentStep(4);
+      if (loaded.applicationStatus && !isEditableStatus(loaded.applicationStatus)) setCurrentStep(4);
+      setSelectedSubjectIds((loaded.subjects ?? []).map((subject) => subject.subjectId));
       setFormData((current) => ({
         ...current,
         fullName: loaded.applicantName ?? current.fullName,
@@ -74,8 +83,33 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
 
     const refreshApplication = async () => applyServerApplication(await getMyApplication());
 
+    const loadSubjects = async () => {
+      setIsLoadingSubjects(true);
+      setSubjectLoadError('');
+      try {
+        setActiveSubjects(await getActiveSubjects());
+      } catch (error) {
+        console.error('Unable to load active subjects', error);
+        setSubjectLoadError(apiMessage(error, 'Unable to load available subjects. Please try again.'));
+      } finally {
+        setIsLoadingSubjects(false);
+      }
+    };
+
     useEffect(() => {
       let active = true;
+      getActiveSubjects()
+        .then((subjects) => {
+          if (active) setActiveSubjects(subjects);
+        })
+        .catch((error) => {
+          console.error('Unable to load active subjects', error);
+          if (active) setSubjectLoadError(apiMessage(error, 'Unable to load available subjects. Please try again.'));
+        })
+        .finally(() => {
+          if (active) setIsLoadingSubjects(false);
+        });
+
       const initialize = async () => {
         try {
           let loaded;
@@ -86,11 +120,11 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
             loaded = await createMyApplication(EMPTY_APPLICATION);
           }
           if (!active) return;
-          if (readOnly && loaded.applicationStatus === 'DRAFT') {
+          if (readOnly && isEditableStatus(loaded.applicationStatus)) {
             navigate('/completeFacultyApplication', { replace: true });
             return;
           }
-          if (!readOnly && loaded.applicationStatus !== 'DRAFT') {
+          if (!readOnly && !isEditableStatus(loaded.applicationStatus)) {
             navigate('/faculty/application/status', { replace: true });
             return;
           }
@@ -126,8 +160,12 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
     ]);
 
     const saveDraft = async () => {
-      if (application?.applicationStatus !== 'DRAFT') {
-        setApplicationMessage({ type: 'error', text: 'Only a DRAFT application can be edited.' });
+      if (!isEditable) {
+        setApplicationMessage({ type: 'error', text: 'This application can no longer be edited.' });
+        return false;
+      }
+      if (isLoadingSubjects || subjectLoadError) {
+        setApplicationMessage({ type: 'error', text: 'Wait for the available subjects to load before saving.' });
         return false;
       }
       setIsSaving(true);
@@ -140,8 +178,14 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
           address: formData.address.trim() || null,
           bio: formData.bio.trim() || null,
         });
-        applyServerApplication(saved);
-        setApplicationMessage({ type: 'success', text: 'Draft saved successfully.' });
+        const savedSubjects = await updateMyRequestedSubjects(selectedSubjectIds);
+        applyServerApplication({ ...saved, subjects: savedSubjects });
+        setApplicationMessage({
+          type: 'success',
+          text: application.applicationStatus === 'CHANGES_REQUESTED'
+            ? 'Corrections saved successfully.'
+            : 'Draft saved successfully.',
+        });
         return true;
       } catch (error) {
         console.error('Unable to save instructor application', error);
@@ -153,7 +197,7 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
     };
 
     const nextStep = async () =>{
-        if (!isDraft) {
+        if (!isEditable) {
             setCurrentStep((prev) => Math.min(prev + 1, 4));
             return;
         }
@@ -191,11 +235,22 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
   
 const handleSubmit = async (e) => {
     e.preventDefault();
-    if (currentStep === 4 && isDraft) setShowSubmitConfirmation(true);
+    if (currentStep !== 4 || !isEditable) return;
+    if (isLoadingSubjects || subjectLoadError) {
+      setApplicationMessage({ type: 'error', text: 'Available subjects must finish loading before submission.' });
+      return;
+    }
+    if (selectedSubjectIds.length === 0) {
+      setErrors((current) => ({ ...current, requestedSubjects: 'Please select at least one subject you want to teach.' }));
+      setApplicationMessage({ type: 'error', text: 'Please select at least one subject you want to teach.' });
+      setCurrentStep(2);
+      return;
+    }
+    setShowSubmitConfirmation(true);
 };
 
 const confirmSubmission = async () => {
-  if (isSubmitting || !isDraft) return;
+  if (isSubmitting || !isEditable || selectedSubjectIds.length === 0) return;
   setIsSubmitting(true);
   setApplicationMessage(null);
   try {
@@ -210,6 +265,26 @@ const confirmSubmission = async () => {
     setIsSubmitting(false);
   }
 };
+
+const handleSubjectToggle = (subjectId) => {
+  if (!isEditable) return;
+  setSelectedSubjectIds((current) => current.includes(subjectId)
+    ? current.filter((id) => id !== subjectId)
+    : [...current, subjectId]);
+  setErrors((current) => ({ ...current, requestedSubjects: '' }));
+};
+
+const subjectOptions = [
+  ...activeSubjects,
+  ...(application?.subjects ?? [])
+    .filter((selection) => !activeSubjects.some((subject) => subject.id === selection.subjectId))
+    .map((selection) => ({
+      id: selection.subjectId,
+      name: selection.subjectName,
+      code: selection.subjectCode,
+      status: selection.subjectStatus,
+    })),
+];
 // 3. Clear the error dynamically as the user types
 const handleInputChange = (e) => {
   const { name, value } = e.target;
@@ -407,7 +482,7 @@ const handleBioBlur = (e) => {
               <div className="space-y-6">
                 <FacultyProfilePhoto
                     application={application}
-                    isDraft={application?.applicationStatus === 'DRAFT'}
+                    isEditable={isEditable}
                     photoPreview={photoPreview}
                     setPhotoPreview={setPhotoPreview}
                     onRefresh={refreshApplication}
@@ -443,7 +518,7 @@ const handleBioBlur = (e) => {
                             required
                             max={new Date().toISOString().split('T')[0]} // Blocks future dates in picker
                             value={formData.dob || ''}
-                            disabled={!isDraft}
+                            disabled={!isEditable}
                             onChange={handleInputChange}
                             onBlur={handleDobBlur}
                             className={`mt-2 w-full rounded-xl border bg-slate-50 px-4 py-3.5 pr-12 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 disabled:cursor-wait disabled:opacity-70 [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-inner-spin-button]:hidden ${
@@ -456,7 +531,7 @@ const handleBioBlur = (e) => {
                             <button
                                 type="button"
                                 onClick={openDatePicker}
-                                disabled={!isDraft}
+                                disabled={!isEditable}
                                 tabIndex={-1}
                                 className="absolute cursor-pointer inset-y-0 right-0 top-2 flex items-center pr-4 text-slate-400 hover:text-emerald-600 transition-colors"
                                 aria-label="Open date picker"
@@ -513,7 +588,7 @@ const handleBioBlur = (e) => {
                             required
                             maxLength={200}
                             value={formData.address || ''}
-                            disabled={!isDraft}
+                            disabled={!isEditable}
                             onChange={handleInputChange}
                             onBlur={handleAddressBlur}
                             placeholder="Street name, Flat/House No., Landmark, City, State, ZIP"
@@ -557,7 +632,7 @@ const handleBioBlur = (e) => {
                         name="experienceYears"
                         required
                         value={formData.experienceYears ?? ''}
-                        disabled={!isDraft}
+                        disabled={!isEditable}
                         onChange={handleInputChange}
                         onBlur={handleExperienceYearsBlur}
                         placeholder="e.g. 6"
@@ -588,7 +663,7 @@ const handleBioBlur = (e) => {
                         name="teachingExperienceDescription"
                         rows={3}
                         value={formData.teachingExperienceDescription || ''}
-                        disabled={!isDraft}
+                        disabled={!isEditable}
                         onChange={handleInputChange}
                         placeholder="Describe your teaching experience, responsibilities, and notable outcomes..."
                         className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10"
@@ -615,7 +690,7 @@ const handleBioBlur = (e) => {
                             required
                             maxLength={200}
                             value={formData.bio || ''}
-                            disabled={!isDraft}
+                            disabled={!isEditable}
                             onChange={handleInputChange}
                             onBlur={handleBioBlur}
                             placeholder="Summary of research or teaching background..."
@@ -643,6 +718,16 @@ const handleBioBlur = (e) => {
                              </p>
                             )}
                     </div>
+                    <FacultyRequestedSubjects
+                      subjects={subjectOptions}
+                      selectedSubjectIds={selectedSubjectIds}
+                      isEditable={isEditable}
+                      isLoading={isLoadingSubjects}
+                      loadError={subjectLoadError}
+                      validationError={errors.requestedSubjects}
+                      onToggle={handleSubjectToggle}
+                      onRetry={loadSubjects}
+                    />
               </div>
             )}
   
@@ -650,7 +735,7 @@ const handleBioBlur = (e) => {
             {currentStep === 3 && (
               <FacultyApplicationDocuments
                 documents={application?.documents ?? []}
-                isDraft={application?.applicationStatus === 'DRAFT'}
+                isEditable={isEditable}
                 onRefresh={refreshApplication}
               />
             )}
@@ -658,7 +743,7 @@ const handleBioBlur = (e) => {
             {/* STEP 4: Review & Final Submission */}
             {currentStep === 4 && (
               <div className="space-y-5">
-                {!isDraft && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+                {!isEditable && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
                   <h3 className="text-base font-bold text-emerald-900">
                     {application?.applicationStatus === 'SUBMITTED' ? 'Application Submitted' : 'Application is read-only'}
                   </h3>
@@ -695,6 +780,19 @@ const handleBioBlur = (e) => {
                     <p className="sm:col-span-2"><span className="font-semibold text-slate-700">Bio:</span> {formData.bio || '—'}</p>
                   </div>
   
+                  <div className="pt-2 border-t border-slate-200">
+                    <p className="text-xs font-semibold text-slate-700 mb-1">Requested Subjects:</p>
+                    {(application?.subjects?.length ?? 0) > 0 ? (
+                      <ul className="list-disc list-inside text-xs text-slate-600">
+                        {application.subjects.map((subject) => (
+                          <li key={subject.subjectId}>{subject.subjectName}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">No teaching subjects selected.</p>
+                    )}
+                  </div>
+
                   <div className="pt-2 border-t border-slate-200">
                     <p className="text-xs font-semibold text-slate-700 mb-1">Attached Documents:</p>
                     {(application?.documents?.length ?? 0) > 0 ? (
@@ -747,10 +845,10 @@ const handleBioBlur = (e) => {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                             </svg>
                         </button>
-                    ) : isDraft ? (
+                    ) : isEditable ? (
                         <button
                             type="submit"
-                            disabled={isSaving || isSubmitting}
+                            disabled={isSaving || isSubmitting || isLoadingSubjects || Boolean(subjectLoadError)}
                             className="inline-flex items-center gap-2 rounded-xl border border-emerald-700 bg-emerald-700 px-7 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-md shadow-emerald-700/30 transition hover:border-emerald-800 hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-700/20 active:scale-[0.99]"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 stroke-[2.5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
