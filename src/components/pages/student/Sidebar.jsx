@@ -1,20 +1,10 @@
-import React, { useState } from "react";
-import { Link } from 'react-router-dom';
-import { 
-    BookOpen, 
-    Calendar, 
-    Clock, 
-    GraduationCap, 
-    LayoutDashboard, 
-    LogOut, 
-    MessageSquare, 
-    User, 
-    X,
-    Menu
-  } from 'lucide-react';
+import { useState } from "react";
+import { Link, useLocation } from 'react-router-dom';
+import { X, Menu } from 'lucide-react';
 
-const Sidebar = ({pageId, tabs}) => { console.log(tabs)
+const Sidebar = ({pageId, tabs}) => {
     const [isOpen, setIsOpen] = useState(true);
+    const location = useLocation();
     const toggleSidebar = () => setIsOpen(!isOpen);
     
     
@@ -23,18 +13,25 @@ const Sidebar = ({pageId, tabs}) => { console.log(tabs)
         
             <button 
             onClick={toggleSidebar} 
+            type="button"
+            aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            aria-expanded={isOpen}
             className={`cursor-pointer rounded-lg ${isOpen ? 'p-2': 'p-1 border border-gray-200 shadow-sm'} hover:bg-gray-100 text-gray-500`}
           >
             {isOpen? <X className="w-5 h-5" /> : <Menu className="w-5 h-5"/>}
           </button>
         
-                {tabs?.map((tab,index) => {
+                {tabs?.map((tab) => {
+                    const isActive = pageId === tab.id || location.pathname === tab.path
+                        || (tab.path === '/admin/instructor-applications'
+                            && location.pathname.startsWith('/admin/instructor-applications/'));
                     return(
-                        <nav key={index} className="w-64">
+                        <nav key={tab.id} className="w-64">
                         <Link
                             to={tab.path} 
+                            aria-current={isActive ? 'page' : undefined}
                             className={`flex items-center hover:bg-pink-200 gap-3 rounded-lg px-4 py-3 text-sm font-medium
-                            ${pageId === tab.id ? 'bg-pink-50 text-pink-700'
+                            ${isActive ? 'bg-pink-50 text-pink-700'
                              : 'text-gray-600 bg-white'} ${!isOpen && 'scale-0 opacity-0'}
                              overflow-hidden whitespace-nowrap ease-in-out duration-300`}>
                             <tab.icon className="h-5 w-5"/>{tab.label}

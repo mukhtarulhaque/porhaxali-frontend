@@ -1,6 +1,7 @@
 import { 
     BookOpen, 
     Calendar,  
+    ClipboardCheck,
     LayoutDashboard,  
     MessageSquare, 
     User, 
@@ -16,6 +17,7 @@ const adminTabs = [
     { id: "adminDashboard", label: "Overview System", icon: LayoutDashboard, path:'/adminDashboard'},
     { id: 'allCourses', label: 'All Courses', icon: BookOpen, path:'/allCourses'},
     { id: 'allStudents', label: 'All Students', icon: User, path:'/allStudents'},
+    { id: 'instructorApplications', label: 'Instructor Applications', icon: ClipboardCheck, path:'/admin/instructor-applications'},
     { id: 'allTeachers', label: 'All Teachers', icon: User, path:'/allTeachers'},
   ]
 
