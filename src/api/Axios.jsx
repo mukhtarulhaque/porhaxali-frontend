@@ -4,7 +4,8 @@ import { REFRESH } from './Urls';
 const AUTH_STORAGE_KEY = "porhaxaliAuth";
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'https://porhaxali-backend-production.up.railway.app/'
+    baseURL: import.meta.env.VITE_API_BASE_URL || 'https://porhaxali-backend-production.up.railway.app/',
+    withCredentials: true,
 });
 
 const readStoredAuth = () => {

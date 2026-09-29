@@ -1,0 +1,3 @@
+# Temporary development protection. Remove or update before public launch.
+User-agent: *
+Disallow: /
