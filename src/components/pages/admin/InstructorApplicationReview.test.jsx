@@ -1,15 +1,21 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import InstructorApplicationReview from './InstructorApplicationReview';
 import {
   getInstructorApplication,
   getInstructorApplicationDocumentViewUrl,
+  rejectInstructorApplicationDocument,
+  startInstructorApplicationReview,
+  verifyInstructorApplicationDocument,
 } from '../../../api/AdminInstructorApplications';
 
 vi.mock('../../../api/AdminInstructorApplications', () => ({
   getInstructorApplication: vi.fn(),
   getInstructorApplicationDocumentViewUrl: vi.fn(),
+  rejectInstructorApplicationDocument: vi.fn(),
+  startInstructorApplicationReview: vi.fn(),
+  verifyInstructorApplicationDocument: vi.fn(),
 }));
 
 const detail = {
@@ -103,6 +109,23 @@ describe('Instructor application review detail', () => {
       url: 'https://signed.example.test/document',
       expiresAt: '2026-09-29T12:00:00Z',
     });
+    startInstructorApplicationReview.mockResolvedValue({
+      ...detail,
+      applicationStatus: 'UNDER_REVIEW',
+    });
+    verifyInstructorApplicationDocument.mockResolvedValue({
+      ...detail.documents[0],
+      verificationStatus: 'VERIFIED',
+      verifiedAt: '2026-09-29T09:00:00',
+      verifiedBy: { id: 1, name: 'Admin User' },
+    });
+    rejectInstructorApplicationDocument.mockResolvedValue({
+      ...detail.documents[0],
+      verificationStatus: 'REJECTED',
+      verifiedAt: '2026-09-29T09:00:00',
+      verifiedBy: { id: 1, name: 'Admin User' },
+      remarks: 'Unreadable scan',
+    });
   });
 
   it('loads and displays applicant, subjects, qualifications, documents, and review information', async () => {
@@ -193,5 +216,97 @@ describe('Instructor application review detail', () => {
 
     fireEvent.click(screen.getByRole('link', { name: /back to instructor applications/i }));
     expect(screen.getByTestId('location')).toHaveTextContent('status=UNDER_REVIEW&search=asha&page=1');
+  });
+
+  it('shows Start Review only for submitted applications and updates from the backend response', async () => {
+    getInstructorApplication.mockResolvedValue({
+      ...detail,
+      applicationStatus: 'SUBMITTED',
+      reviewStartedAt: null,
+      reviewStartedBy: null,
+    });
+    renderReview();
+
+    const startButton = await screen.findByRole('button', { name: 'Start Review' });
+    expect(screen.queryByRole('button', { name: 'Mark Verified' })).not.toBeInTheDocument();
+    fireEvent.click(startButton);
+
+    await waitFor(() => expect(startInstructorApplicationReview).toHaveBeenCalledWith('42'));
+    expect(screen.queryByRole('button', { name: 'Start Review' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mark Verified' })).toBeInTheDocument();
+  });
+
+  it('prevents duplicate Start Review submissions while the request is running', async () => {
+    getInstructorApplication.mockResolvedValue({ ...detail, applicationStatus: 'SUBMITTED' });
+    let resolveStart;
+    startInstructorApplicationReview.mockReturnValue(new Promise((resolve) => { resolveStart = resolve; }));
+    renderReview();
+    const startButton = await screen.findByRole('button', { name: 'Start Review' });
+
+    fireEvent.click(startButton);
+    expect(screen.getByRole('button', { name: 'Starting Review…' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Starting Review…' }));
+    expect(startInstructorApplicationReview).toHaveBeenCalledTimes(1);
+    resolveStart(detail);
+  });
+
+  it('keeps the submitted state and shows a useful conflict error when Start Review fails', async () => {
+    getInstructorApplication.mockResolvedValue({ ...detail, applicationStatus: 'SUBMITTED' });
+    startInstructorApplicationReview.mockRejectedValue({ response: { status: 409 } });
+    renderReview();
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Review' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('application state has changed');
+    expect(screen.getByRole('button', { name: 'Start Review' })).toBeInTheDocument();
+  });
+
+  it('shows document controls only for pending documents while under review', async () => {
+    renderReview();
+    await screen.findByText('identity.pdf');
+
+    expect(screen.queryByRole('button', { name: 'Start Review' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Mark Verified' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Reject' })).toHaveLength(1);
+  });
+
+  it('verifies only the selected document using the application-scoped API', async () => {
+    renderReview();
+    await screen.findByText('identity.pdf');
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Verified' }));
+
+    await waitFor(() => expect(verifyInstructorApplicationDocument).toHaveBeenCalledWith('42', 30));
+    const identityCard = screen.getByText('identity.pdf').closest('article');
+    const degreeCard = screen.getByText('degree.pdf').closest('article');
+    expect(within(identityCard).getByText('Verified')).toBeInTheDocument();
+    expect(within(degreeCard).getByText('Verified')).toBeInTheDocument();
+    expect(within(identityCard).queryByRole('button', { name: 'Mark Verified' })).not.toBeInTheDocument();
+  });
+
+  it('requires confirmation and a reason before rejecting a document', async () => {
+    renderReview();
+    await screen.findByText('identity.pdf');
+    fireEvent.click(screen.getByRole('button', { name: 'Reject' }));
+
+    expect(screen.getByRole('dialog', { name: 'Reject document?' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirm Rejection' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Rejection reason'), { target: { value: 'Unreadable scan' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Rejection' }));
+
+    await waitFor(() => expect(rejectInstructorApplicationDocument).toHaveBeenCalledWith('42', 30, 'Unreadable scan'));
+    const identityCard = screen.getByText('identity.pdf').closest('article');
+    expect(within(identityCard).getByText('Rejected')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('leaves the previous document status intact when a document mutation fails', async () => {
+    verifyInstructorApplicationDocument.mockRejectedValue(new Error('network'));
+    renderReview();
+    await screen.findByText('identity.pdf');
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Verified' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unable to update the document review status');
+    const identityCard = screen.getByText('identity.pdf').closest('article');
+    expect(within(identityCard).getByText('Pending')).toBeInTheDocument();
+    expect(within(identityCard).getByRole('button', { name: 'Mark Verified' })).toBeInTheDocument();
   });
 });

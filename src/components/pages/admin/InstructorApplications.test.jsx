@@ -12,6 +12,9 @@ vi.mock('../../../api/AdminInstructorApplications', () => ({
   getInstructorApplication: vi.fn(),
   getInstructorApplications: vi.fn(),
   getInstructorApplicationDocumentViewUrl: vi.fn(),
+  rejectInstructorApplicationDocument: vi.fn(),
+  startInstructorApplicationReview: vi.fn(),
+  verifyInstructorApplicationDocument: vi.fn(),
 }));
 
 const application = {
