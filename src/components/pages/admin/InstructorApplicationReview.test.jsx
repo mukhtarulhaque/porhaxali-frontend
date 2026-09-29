@@ -3,17 +3,23 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import InstructorApplicationReview from './InstructorApplicationReview';
 import {
+  approveInstructorApplication,
   getInstructorApplication,
   getInstructorApplicationDocumentViewUrl,
+  rejectInstructorApplication,
   rejectInstructorApplicationDocument,
+  requestInstructorApplicationChanges,
   startInstructorApplicationReview,
   verifyInstructorApplicationDocument,
 } from '../../../api/AdminInstructorApplications';
 
 vi.mock('../../../api/AdminInstructorApplications', () => ({
+  approveInstructorApplication: vi.fn(),
   getInstructorApplication: vi.fn(),
   getInstructorApplicationDocumentViewUrl: vi.fn(),
+  rejectInstructorApplication: vi.fn(),
   rejectInstructorApplicationDocument: vi.fn(),
+  requestInstructorApplicationChanges: vi.fn(),
   startInstructorApplicationReview: vi.fn(),
   verifyInstructorApplicationDocument: vi.fn(),
 }));
@@ -125,6 +131,33 @@ describe('Instructor application review detail', () => {
       verifiedAt: '2026-09-29T09:00:00',
       verifiedBy: { id: 1, name: 'Admin User' },
       remarks: 'Unreadable scan',
+    });
+    approveInstructorApplication.mockResolvedValue({
+      ...detail,
+      applicationStatus: 'APPROVED',
+      adminRemarks: 'Documents verified',
+      rejectionReason: null,
+      reviewedAt: '2026-09-29T10:00:00',
+      reviewHistory: [...detail.reviewHistory, {
+        id: 81,
+        action: 'APPROVED',
+        previousStatus: 'UNDER_REVIEW',
+        newStatus: 'APPROVED',
+        performedBy: { id: 1, name: 'Admin User' },
+        remark: 'Documents verified',
+        createdAt: '2026-09-29T10:00:00',
+      }],
+    });
+    rejectInstructorApplication.mockResolvedValue({
+      ...detail,
+      applicationStatus: 'REJECTED',
+      rejectionReason: 'Qualifications do not meet requirements',
+    });
+    requestInstructorApplicationChanges.mockResolvedValue({
+      ...detail,
+      applicationStatus: 'CHANGES_REQUESTED',
+      adminRemarks: 'Upload a clearer certificate',
+      rejectionReason: null,
     });
   });
 
@@ -267,6 +300,83 @@ describe('Instructor application review detail', () => {
     expect(screen.queryByRole('button', { name: 'Start Review' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Mark Verified' })).toHaveLength(1);
     expect(screen.getAllByRole('button', { name: 'Reject' })).toHaveLength(1);
+  });
+
+  it('shows final decision actions only while the application is under review', async () => {
+    renderReview();
+    expect(await screen.findByRole('button', { name: 'Approve' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Request Changes' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reject Application' })).toBeInTheDocument();
+    expect(screen.getByText(/backend will confirm that every required document/i)).toBeInTheDocument();
+  });
+
+  it('confirms approval is decision-only and updates the page from the response', async () => {
+    renderReview();
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+
+    expect(screen.getByRole('dialog', { name: 'Approve application?' })).toHaveTextContent('does not activate the instructor');
+    fireEvent.change(screen.getByLabelText('Approval remarks (optional)'), { target: { value: '  Documents verified  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Approval' }));
+
+    await waitFor(() => expect(approveInstructorApplication).toHaveBeenCalledWith('42', 'Documents verified'));
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Approved').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Documents verified').length).toBeGreaterThan(0);
+  });
+
+  it('requires a rejection reason and applies the returned rejected state', async () => {
+    renderReview();
+    fireEvent.click(await screen.findByRole('button', { name: 'Reject Application' }));
+
+    const reason = screen.getByLabelText('Rejection reason');
+    expect(reason).toHaveAttribute('maxlength', '2000');
+    expect(screen.getByRole('button', { name: 'Confirm Rejection' })).toBeDisabled();
+    fireEvent.change(reason, { target: { value: 'Qualifications do not meet requirements' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Rejection' }));
+
+    await waitFor(() => expect(rejectInstructorApplication).toHaveBeenCalledWith(
+      '42',
+      'Qualifications do not meet requirements',
+    ));
+    expect(screen.queryByRole('button', { name: 'Reject Application' })).not.toBeInTheDocument();
+    expect(screen.getByText('Qualifications do not meet requirements')).toBeInTheDocument();
+  });
+
+  it('requires request-change remarks and applies the returned state', async () => {
+    renderReview();
+    fireEvent.click(await screen.findByRole('button', { name: 'Request Changes' }));
+
+    const remarks = screen.getByLabelText('Requested changes');
+    expect(screen.getByRole('button', { name: 'Send Change Request' })).toBeDisabled();
+    fireEvent.change(remarks, { target: { value: 'Upload a clearer certificate' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send Change Request' }));
+
+    await waitFor(() => expect(requestInstructorApplicationChanges).toHaveBeenCalledWith(
+      '42',
+      'Upload a clearer certificate',
+    ));
+    expect(screen.queryByRole('button', { name: 'Request Changes' })).not.toBeInTheDocument();
+    expect(screen.getByText('Upload a clearer certificate')).toBeInTheDocument();
+  });
+
+  it('keeps decision controls visible and reports stale-state conflicts', async () => {
+    approveInstructorApplication.mockRejectedValue({ response: { status: 409 } });
+    renderReview();
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Approval' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('can no longer be decided');
+    expect(screen.getByRole('dialog', { name: 'Approve application?' })).toBeInTheDocument();
+  });
+
+  it('hides final decisions for terminal statuses', async () => {
+    getInstructorApplication.mockResolvedValue({ ...detail, applicationStatus: 'APPROVED' });
+    renderReview();
+    await screen.findByRole('heading', { name: 'Asha Das' });
+
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Request Changes' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reject Application' })).not.toBeInTheDocument();
   });
 
   it('verifies only the selected document using the application-scoped API', async () => {

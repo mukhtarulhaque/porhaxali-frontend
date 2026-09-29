@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
+  AlertTriangle,
   BookOpen,
   BriefcaseBusiness,
   CheckCircle2,
@@ -15,9 +16,12 @@ import {
 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import {
+  approveInstructorApplication,
   getInstructorApplication,
   getInstructorApplicationDocumentViewUrl,
+  rejectInstructorApplication,
   rejectInstructorApplicationDocument,
+  requestInstructorApplicationChanges,
   startInstructorApplicationReview,
   verifyInstructorApplicationDocument,
 } from '../../../api/AdminInstructorApplications';
@@ -140,6 +144,10 @@ export default function InstructorApplicationReview() {
   const [rejectingDocument, setRejectingDocument] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionError, setActionError] = useState(null);
+  const [decisionDialog, setDecisionDialog] = useState(null);
+  const [decisionText, setDecisionText] = useState('');
+  const [decisionError, setDecisionError] = useState(null);
+  const [isDeciding, setIsDeciding] = useState(false);
   const application = requestState.data;
   const error = requestState.key === requestKey ? requestState.error : null;
   const isLoading = requestState.key !== requestKey;
@@ -234,6 +242,44 @@ export default function InstructorApplicationReview() {
     setRejectingDocument(document);
   };
 
+  const openDecisionDialog = (decision) => {
+    setActionError(null);
+    setDecisionError(null);
+    setDecisionText('');
+    setDecisionDialog(decision);
+  };
+
+  const submitDecision = async (event) => {
+    event.preventDefault();
+    const text = decisionText.trim();
+    if (decisionDialog !== 'approve' && !text) return;
+
+    setIsDeciding(true);
+    setDecisionError(null);
+    try {
+      let updatedApplication;
+      if (decisionDialog === 'approve') {
+        updatedApplication = await approveInstructorApplication(applicationId, text || undefined);
+      } else if (decisionDialog === 'reject') {
+        updatedApplication = await rejectInstructorApplication(applicationId, text);
+      } else {
+        updatedApplication = await requestInstructorApplicationChanges(applicationId, text);
+      }
+      setRequestState({ data: updatedApplication, error: null, key: requestKey });
+      setDecisionDialog(null);
+      setDecisionText('');
+    } catch (requestError) {
+      console.error('Unable to record instructor application decision', requestError);
+      const stale = requestError.response?.status === 409 || requestError.response?.status === 400;
+      setDecisionError(stale
+        ? requestError.response?.data?.message
+          || 'This application can no longer be decided in its current state. Refresh the details and try again.'
+        : 'Unable to record the application decision. Please try again.');
+    } finally {
+      setIsDeciding(false);
+    }
+  };
+
   const refreshDetails = () => {
     setActionError(null);
     setRequestVersion((version) => version + 1);
@@ -317,6 +363,35 @@ export default function InstructorApplicationReview() {
                     <RefreshCw className="h-4 w-4" /> Refresh details
                   </button>
                 </div>
+              )}
+
+              {application.applicationStatus === 'UNDER_REVIEW' && (
+                <section aria-labelledby="application-decision-title" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <h2 id="application-decision-title" className="font-bold text-slate-900">Final application decision</h2>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">Record the review outcome after checking the application and required documents.</p>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button type="button" onClick={() => openDecisionDialog('approve')} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-100">
+                        <CheckCircle2 className="h-4 w-4" /> Approve
+                      </button>
+                      <button type="button" onClick={() => openDecisionDialog('changes')} className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 hover:bg-amber-100 focus:outline-none focus:ring-4 focus:ring-amber-100">
+                        <AlertTriangle className="h-4 w-4" /> Request Changes
+                      </button>
+                      <button type="button" onClick={() => openDecisionDialog('reject')} className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-800 hover:bg-rose-100 focus:outline-none focus:ring-4 focus:ring-rose-100">
+                        <XCircle className="h-4 w-4" /> Reject Application
+                      </button>
+                    </div>
+                  </div>
+                  {(!application.documents?.length
+                    || application.documents.some((document) => document.verificationStatus !== 'VERIFIED')) && (
+                    <p className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      Some documents are missing or not verified. The backend will confirm that every required document is present and verified before approval.
+                    </p>
+                  )}
+                </section>
               )}
 
               <Section icon={ClipboardCheck} title="Application Information" description="Submission and review tracking information.">
@@ -537,6 +612,48 @@ export default function InstructorApplicationReview() {
                 >
                   <XCircle className="h-4 w-4" />
                   {documentMutationId === rejectingDocument.documentId ? 'Rejecting…' : 'Confirm Rejection'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {decisionDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="presentation">
+          <div role="dialog" aria-modal="true" aria-labelledby="application-decision-dialog-title" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-7">
+            <h2 id="application-decision-dialog-title" className="text-xl font-bold text-slate-900">
+              {decisionDialog === 'approve' ? 'Approve application?' : decisionDialog === 'reject' ? 'Reject application?' : 'Request application changes?'}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {decisionDialog === 'approve'
+                ? 'This marks the application APPROVED. It does not activate the instructor, create an instructor profile, or assign subjects.'
+                : decisionDialog === 'reject'
+                  ? 'Record the reason this application cannot be accepted.'
+                  : 'Tell the applicant what must be updated before another review.'}
+            </p>
+            {decisionError && <p role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{decisionError}</p>}
+            <form className="mt-5" onSubmit={submitDecision}>
+              <label htmlFor="application-decision-text" className="block text-sm font-semibold text-slate-700">
+                {decisionDialog === 'approve' ? 'Approval remarks (optional)' : decisionDialog === 'reject' ? 'Rejection reason' : 'Requested changes'}
+              </label>
+              <textarea
+                id="application-decision-text"
+                value={decisionText}
+                onChange={(event) => setDecisionText(event.target.value)}
+                rows={5}
+                maxLength={2000}
+                required={decisionDialog !== 'approve'}
+                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
+              />
+              <p className="mt-1 text-right text-xs text-slate-400">{decisionText.length}/2000</p>
+              <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button type="button" onClick={() => setDecisionDialog(null)} disabled={isDeciding} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">Cancel</button>
+                <button
+                  type="submit"
+                  disabled={isDeciding || (decisionDialog !== 'approve' && !decisionText.trim())}
+                  className={`rounded-xl px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 ${decisionDialog === 'approve' ? 'bg-emerald-700 hover:bg-emerald-800' : decisionDialog === 'reject' ? 'bg-rose-700 hover:bg-rose-800' : 'bg-amber-700 hover:bg-amber-800'}`}
+                >
+                  {isDeciding ? 'Saving…' : decisionDialog === 'approve' ? 'Confirm Approval' : decisionDialog === 'reject' ? 'Confirm Rejection' : 'Send Change Request'}
                 </button>
               </div>
             </form>
