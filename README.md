@@ -27,6 +27,17 @@ Set `VITE_API_BASE_URL=http://localhost:8080/` for local backend development, or
 a staging API URL. If unset, the existing production API URL remains the default.
 Vite reads this variable when starting the dev server or building the app.
 
+For the Railway frontend service, configure this build-time variable:
+
+```text
+VITE_API_BASE_URL=https://porhaxali-backend-production.up.railway.app/
+```
+
+Keep the trailing slash because API path constants such as
+`api/development-access/status` are relative to this base URL. Copy `.env.example`
+to an ignored local environment file when local overrides are needed; do not commit
+real environment files.
+
 The backend's Part 1 schema/configuration must be deployed before signup can work.
 The email destination `/faculty/setup-account` is not yet implemented in this
 frontend; creating that password-setup page remains a separate follow-up.
@@ -34,3 +45,18 @@ frontend; creating that password-setup page remains a separate follow-up.
 Verification: production build and ESLint on changed JavaScript files pass.
 Browser checks cover desktop/mobile layout, required fields, email/phone validation,
 success and resend-error states using a local mock API (no real emails sent).
+
+## Temporary development access
+
+`DevelopmentAccessGate` wraps the router and existing authentication provider. It
+checks `api/development-access/status` before mounting the Porhaxali application and
+uses the backend's HttpOnly cookie as the only source of development-access state.
+The shared Axios client sends credentials for this cookie alongside normal JWT
+Authorization headers.
+
+Development-access logout is available as `logout` from the
+`useDevelopmentAccess()` hook. No global logout control is shown yet; a temporary
+developer control can call this function later without changing normal user logout.
+
+The `noindex, nofollow` meta tag and blocking `public/robots.txt` are temporary and
+must be removed or updated before the public launch.
