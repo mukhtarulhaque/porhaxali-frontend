@@ -3,10 +3,15 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import InstructorApplications from './InstructorApplications';
 import InstructorApplicationReview from './InstructorApplicationReview';
-import { getInstructorApplications } from '../../../api/AdminInstructorApplications';
+import {
+  getInstructorApplication,
+  getInstructorApplications,
+} from '../../../api/AdminInstructorApplications';
 
 vi.mock('../../../api/AdminInstructorApplications', () => ({
+  getInstructorApplication: vi.fn(),
   getInstructorApplications: vi.fn(),
+  getInstructorApplicationDocumentViewUrl: vi.fn(),
 }));
 
 const application = {
@@ -50,6 +55,15 @@ describe('Instructor applications list', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getInstructorApplications.mockResolvedValue(pageResponse());
+    getInstructorApplication.mockImplementation(async (applicationId) => ({
+      applicationId: Number(applicationId),
+      applicant: { name: 'Asha Das' },
+      qualifications: [],
+      requestedSubjects: [],
+      documents: [],
+      reviewHistory: [],
+      applicationStatus: 'UNDER_REVIEW',
+    }));
   });
 
   it('loads rows and renders backend DTO fields with human-readable status', async () => {
@@ -114,9 +128,9 @@ describe('Instructor applications list', () => {
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('status=UNDER_REVIEW&page=1'));
   });
 
-  it('renders a directly opened review route without navigation state', () => {
+  it('renders a directly opened review route without navigation state', async () => {
     renderList('/admin/instructor-applications/99/review');
-    expect(screen.getByText('Application ID: 99')).toBeInTheDocument();
+    expect(await screen.findByText('Application ID: 99')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /back to instructor applications/i })).toHaveAttribute('href', '/admin/instructor-applications');
   });
 });
