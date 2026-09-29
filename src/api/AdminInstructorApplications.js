@@ -15,3 +15,11 @@ export const getInstructorApplicationCounts = async () =>
 
 export const getInstructorApplications = async (params = {}) =>
   unwrapData(await Axios.get(ADMIN_INSTRUCTOR_APPLICATIONS, { params: compactParams(params) }));
+
+export const getInstructorApplication = async (applicationId) =>
+  unwrapData(await Axios.get(`${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}`));
+
+export const getInstructorApplicationDocumentViewUrl = async (applicationId, documentId) =>
+  unwrapData(await Axios.get(
+    `${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/documents/${documentId}/view-url`,
+  ));
