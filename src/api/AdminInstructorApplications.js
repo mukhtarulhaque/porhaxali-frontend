@@ -23,3 +23,18 @@ export const getInstructorApplicationDocumentViewUrl = async (applicationId, doc
   unwrapData(await Axios.get(
     `${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/documents/${documentId}/view-url`,
   ));
+
+export const startInstructorApplicationReview = async (applicationId) =>
+  unwrapData(await Axios.post(`${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/start-review`));
+
+export const verifyInstructorApplicationDocument = async (applicationId, documentId, adminRemarks) =>
+  unwrapData(await Axios.patch(
+    `${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/documents/${documentId}/verify`,
+    { adminRemarks },
+  ));
+
+export const rejectInstructorApplicationDocument = async (applicationId, documentId, rejectionReason) =>
+  unwrapData(await Axios.patch(
+    `${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/documents/${documentId}/reject`,
+    { rejectionReason },
+  ));

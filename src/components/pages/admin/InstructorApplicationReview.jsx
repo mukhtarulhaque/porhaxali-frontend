@@ -3,18 +3,23 @@ import {
   ArrowLeft,
   BookOpen,
   BriefcaseBusiness,
+  CheckCircle2,
   ClipboardCheck,
   ExternalLink,
   FileText,
   GraduationCap,
   RefreshCw,
   ShieldCheck,
+  XCircle,
   UserRound,
 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   getInstructorApplication,
   getInstructorApplicationDocumentViewUrl,
+  rejectInstructorApplicationDocument,
+  startInstructorApplicationReview,
+  verifyInstructorApplicationDocument,
 } from '../../../api/AdminInstructorApplications';
 import Sidebar from '../student/Sidebar';
 import { adminTabs } from '../commom/CommonArrays';
@@ -130,6 +135,11 @@ export default function InstructorApplicationReview() {
   const [requestState, setRequestState] = useState({ data: null, error: null, key: '' });
   const [openingDocumentId, setOpeningDocumentId] = useState(null);
   const [documentError, setDocumentError] = useState(null);
+  const [isStartingReview, setIsStartingReview] = useState(false);
+  const [documentMutationId, setDocumentMutationId] = useState(null);
+  const [rejectingDocument, setRejectingDocument] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [actionError, setActionError] = useState(null);
   const application = requestState.data;
   const error = requestState.key === requestKey ? requestState.error : null;
   const isLoading = requestState.key !== requestKey;
@@ -165,6 +175,68 @@ export default function InstructorApplicationReview() {
     } finally {
       setOpeningDocumentId(null);
     }
+  };
+
+  const startReview = async () => {
+    setIsStartingReview(true);
+    setActionError(null);
+    try {
+      const updatedApplication = await startInstructorApplicationReview(applicationId);
+      setRequestState({ data: updatedApplication, error: null, key: requestKey });
+    } catch (requestError) {
+      console.error('Unable to start instructor application review', requestError);
+      const stale = requestError.response?.status === 409 || requestError.response?.status === 400;
+      setActionError(stale
+        ? 'Review could not be started because the application state has changed. Refresh the details and try again.'
+        : 'Unable to start review. Please try again.');
+    } finally {
+      setIsStartingReview(false);
+    }
+  };
+
+  const updateDocument = async (document, action, reason) => {
+    setDocumentMutationId(document.documentId);
+    setActionError(null);
+    try {
+      const updatedDocument = action === 'verify'
+        ? await verifyInstructorApplicationDocument(applicationId, document.documentId)
+        : await rejectInstructorApplicationDocument(applicationId, document.documentId, reason);
+      setRequestState((previous) => ({
+        ...previous,
+        data: {
+          ...previous.data,
+          documents: previous.data.documents.map((item) =>
+            item.documentId === updatedDocument.documentId ? updatedDocument : item),
+        },
+      }));
+      if (action === 'reject') {
+        setRejectingDocument(null);
+        setRejectionReason('');
+      }
+    } catch (requestError) {
+      console.error('Unable to update instructor application document', requestError);
+      const stale = requestError.response?.status === 409 || requestError.response?.status === 400;
+      setActionError(stale
+        ? 'This document can no longer be reviewed in its current state. Refresh the details to see the latest status.'
+        : 'Unable to update the document review status. Please try again.');
+      if (action === 'reject') {
+        setRejectingDocument(null);
+        setRejectionReason('');
+      }
+    } finally {
+      setDocumentMutationId(null);
+    }
+  };
+
+  const openRejectConfirmation = (document) => {
+    setActionError(null);
+    setRejectionReason('');
+    setRejectingDocument(document);
+  };
+
+  const refreshDetails = () => {
+    setActionError(null);
+    setRequestVersion((version) => version + 1);
   };
 
   return (
@@ -218,12 +290,34 @@ export default function InstructorApplicationReview() {
                         <p className="mt-2 text-sm text-slate-500">Application ID: {application.applicationId}</p>
                       </div>
                     </div>
-                    <span className={`inline-flex w-fit rounded-full border px-3 py-1.5 text-xs font-bold ${APPLICATION_STATUS_STYLES[application.applicationStatus] ?? APPLICATION_STATUS_STYLES.DRAFT}`}>
-                      {humanize(application.applicationStatus)}
-                    </span>
+                    <div className="flex flex-col items-start gap-3 sm:items-end">
+                      <span className={`inline-flex w-fit rounded-full border px-3 py-1.5 text-xs font-bold ${APPLICATION_STATUS_STYLES[application.applicationStatus] ?? APPLICATION_STATUS_STYLES.DRAFT}`}>
+                        {humanize(application.applicationStatus)}
+                      </span>
+                      {application.applicationStatus === 'SUBMITTED' && (
+                        <button
+                          type="button"
+                          onClick={startReview}
+                          disabled={isStartingReview}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-pink-700 focus:outline-none focus:ring-4 focus:ring-pink-100 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          <ClipboardCheck className="h-4 w-4" />
+                          {isStartingReview ? 'Starting Review…' : 'Start Review'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </header>
+
+              {actionError && (
+                <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-900 sm:flex-row sm:items-center sm:justify-between">
+                  <p>{actionError}</p>
+                  <button type="button" onClick={refreshDetails} className="inline-flex shrink-0 items-center gap-2 font-bold text-rose-800 underline underline-offset-4 focus:outline-none focus:ring-2 focus:ring-rose-300">
+                    <RefreshCw className="h-4 w-4" /> Refresh details
+                  </button>
+                </div>
+              )}
 
               <Section icon={ClipboardCheck} title="Application Information" description="Submission and review tracking information.">
                 <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -325,15 +419,38 @@ export default function InstructorApplicationReview() {
                           )}
                           {document.remarks && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{document.remarks}</p>}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => openDocument(document)}
-                          disabled={openingDocumentId === document.documentId}
-                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-pink-200 hover:bg-pink-50 hover:text-pink-700 focus:outline-none focus:ring-4 focus:ring-pink-100 disabled:cursor-wait disabled:opacity-60"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          {openingDocumentId === document.documentId ? 'Opening…' : 'View Document'}
-                        </button>
+                        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={() => openDocument(document)}
+                            disabled={openingDocumentId === document.documentId}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-pink-200 hover:bg-pink-50 hover:text-pink-700 focus:outline-none focus:ring-4 focus:ring-pink-100 disabled:cursor-wait disabled:opacity-60"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            {openingDocumentId === document.documentId ? 'Opening…' : 'View Document'}
+                          </button>
+                          {application.applicationStatus === 'UNDER_REVIEW' && document.verificationStatus === 'PENDING' && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => updateDocument(document, 'verify')}
+                                disabled={documentMutationId !== null}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-100 disabled:cursor-wait disabled:opacity-60"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                                {documentMutationId === document.documentId ? 'Saving…' : 'Mark Verified'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openRejectConfirmation(document)}
+                                disabled={documentMutationId !== null}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 focus:outline-none focus:ring-4 focus:ring-rose-100 disabled:cursor-wait disabled:opacity-60"
+                              >
+                                <XCircle className="h-4 w-4" /> Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </article>
                     ))}
                   </div>
@@ -375,6 +492,57 @@ export default function InstructorApplicationReview() {
           )}
         </div>
       </main>
+      {rejectingDocument && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="presentation">
+          <div role="dialog" aria-modal="true" aria-labelledby="reject-document-title" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-7">
+            <h2 id="reject-document-title" className="text-xl font-bold text-slate-900">Reject document?</h2>
+            <p className="mt-2 break-all text-sm leading-6 text-slate-600">
+              Record why <strong>{rejectingDocument.originalFilename || 'this document'}</strong> cannot be accepted.
+            </p>
+            <form
+              className="mt-5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const reason = rejectionReason.trim();
+                if (reason) updateDocument(rejectingDocument, 'reject', reason);
+              }}
+            >
+              <label htmlFor="document-rejection-reason" className="block text-sm font-semibold text-slate-700">Rejection reason</label>
+              <textarea
+                id="document-rejection-reason"
+                value={rejectionReason}
+                onChange={(event) => setRejectionReason(event.target.value)}
+                rows={4}
+                maxLength={2000}
+                required
+                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-rose-500 focus:ring-4 focus:ring-rose-100"
+                placeholder="Explain what is wrong with this document"
+              />
+              <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRejectingDocument(null);
+                    setRejectionReason('');
+                  }}
+                  disabled={documentMutationId !== null}
+                  className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!rejectionReason.trim() || documentMutationId !== null}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <XCircle className="h-4 w-4" />
+                  {documentMutationId === rejectingDocument.documentId ? 'Rejecting…' : 'Confirm Rejection'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
