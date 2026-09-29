@@ -27,6 +27,24 @@ export const getInstructorApplicationDocumentViewUrl = async (applicationId, doc
 export const startInstructorApplicationReview = async (applicationId) =>
   unwrapData(await Axios.post(`${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/start-review`));
 
+export const approveInstructorApplication = async (applicationId, remarks) =>
+  unwrapData(await Axios.post(
+    `${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/approve`,
+    { remarks },
+  ));
+
+export const rejectInstructorApplication = async (applicationId, reason) =>
+  unwrapData(await Axios.post(
+    `${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/reject`,
+    { reason },
+  ));
+
+export const requestInstructorApplicationChanges = async (applicationId, remarks) =>
+  unwrapData(await Axios.post(
+    `${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/request-changes`,
+    { remarks },
+  ));
+
 export const verifyInstructorApplicationDocument = async (applicationId, documentId, adminRemarks) =>
   unwrapData(await Axios.patch(
     `${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/documents/${documentId}/verify`,
