@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import InstructorApplicationReview from './InstructorApplicationReview';
 import {
   approveInstructorApplication,
+  activateInstructor,
   getInstructorApplication,
   getInstructorApplicationDocumentViewUrl,
   rejectInstructorApplication,
@@ -15,6 +16,7 @@ import {
 
 vi.mock('../../../api/AdminInstructorApplications', () => ({
   approveInstructorApplication: vi.fn(),
+  activateInstructor: vi.fn(),
   getInstructorApplication: vi.fn(),
   getInstructorApplicationDocumentViewUrl: vi.fn(),
   rejectInstructorApplication: vi.fn(),
@@ -147,6 +149,17 @@ describe('Instructor application review detail', () => {
         remark: 'Documents verified',
         createdAt: '2026-09-29T10:00:00',
       }],
+    });
+    activateInstructor.mockResolvedValue({
+      applicationId: 42,
+      applicationStatus: 'APPROVED',
+      userId: 8,
+      role: 'INSTRUCTOR',
+      instructorProfileId: 99,
+      instructorStatus: 'ACTIVE',
+      activatedAt: '2026-09-29T11:00:00',
+      activatedBy: { id: 1, name: 'Admin User' },
+      assignedSubjects: detail.requestedSubjects,
     });
     rejectInstructorApplication.mockResolvedValue({
       ...detail,
@@ -377,6 +390,43 @@ describe('Instructor application review detail', () => {
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Request Changes' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reject Application' })).not.toBeInTheDocument();
+  });
+
+  it('requires confirmation and updates an approved application after activation', async () => {
+    getInstructorApplication.mockResolvedValue({ ...detail, applicationStatus: 'APPROVED' });
+    renderReview();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Activate Instructor' }));
+    expect(screen.getByRole('dialog', { name: 'Activate this instructor?' })).toHaveTextContent(
+      'creates an active InstructorProfile and subject assignments',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Activation' }));
+
+    await waitFor(() => expect(activateInstructor).toHaveBeenCalledWith('42'));
+    expect(screen.queryByRole('button', { name: 'Activate Instructor' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Activated Instructor' })).toBeInTheDocument();
+    expect(screen.getByText('99')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+  });
+
+  it('keeps activation available and shows the backend error when activation fails', async () => {
+    getInstructorApplication.mockResolvedValue({ ...detail, applicationStatus: 'APPROVED' });
+    activateInstructor.mockRejectedValue({ response: { data: { message: 'Subject Physics is inactive' } } });
+    renderReview();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Activate Instructor' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Activation' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Subject Physics is inactive');
+    expect(screen.getAllByText('Approved')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Confirm Activation' })).toBeEnabled();
+  });
+
+  it.each(['UNDER_REVIEW', 'REJECTED', 'CHANGES_REQUESTED'])('does not offer activation for %s', async (status) => {
+    getInstructorApplication.mockResolvedValue({ ...detail, applicationStatus: status });
+    renderReview();
+    await screen.findByRole('heading', { name: 'Asha Das' });
+    expect(screen.queryByRole('button', { name: 'Activate Instructor' })).not.toBeInTheDocument();
   });
 
   it('verifies only the selected document using the application-scoped API', async () => {
