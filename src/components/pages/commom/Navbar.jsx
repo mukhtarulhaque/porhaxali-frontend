@@ -9,6 +9,7 @@ import SearchBox from "./SearchBox";
 import { BarLoader } from "react-spinners";
 import NotificationBell from "./NotificationBell";
 import { getMyApplication } from '../../../api/InstructorApplication';
+import { getRoleMenuItems } from './RoleMenuConfig';
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [isAvatarOpen, setIsAvatarOpen] = useState(false);
@@ -58,6 +59,11 @@ const Navbar = () => {
     const applicationLabel = applicationStatus && !isDraftApplication
       ? 'Application Status'
       : 'Complete Application';
+    const roleMenuItems = getRoleMenuItems(auth.userRole, {
+      path: applicationPath,
+      label: applicationLabel,
+      showDocuments: isDraftApplication,
+    });
     const logout = async () => {
       setIsLoading(true);
       try {
@@ -148,13 +154,9 @@ const Navbar = () => {
                                     <p className="text-sm font-medium text-gray-900 dark:text-white">{auth.userName}</p>
                                     <p className="text-xs text-gray-500 truncate dark:text-gray-400">{auth.userEmail}</p>
                                 </div>
-                                {auth.userRole === 'INSTRUCTOR_APPLICANT' ? <>
-                                  <Link to={applicationPath} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">{applicationLabel}</Link>
-                                  {isDraftApplication && <Link to="/completeFacultyApplication/documents" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Documents</Link>}
-                                </> : <>
-                                  <Link to="/profileSetting" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Student Profile</Link>
-                                  <Link to="/dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">Dashboard</Link>
-                                </>}
+                                {roleMenuItems.map((item) => (
+                                  <Link key={item.path} to={item.path} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700">{item.label}</Link>
+                                ))}
                                 <hr className="border-gray-100 dark:border-gray-700" />
                                 <Link className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={logout}>Sign out</Link>
                             </div>
