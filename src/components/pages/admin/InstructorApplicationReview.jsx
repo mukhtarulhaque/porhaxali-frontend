@@ -13,10 +13,12 @@ import {
   ShieldCheck,
   XCircle,
   UserRound,
+  UserCheck,
 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   approveInstructorApplication,
+  activateInstructor,
   getInstructorApplication,
   getInstructorApplicationDocumentViewUrl,
   rejectInstructorApplication,
@@ -148,6 +150,9 @@ export default function InstructorApplicationReview() {
   const [decisionText, setDecisionText] = useState('');
   const [decisionError, setDecisionError] = useState(null);
   const [isDeciding, setIsDeciding] = useState(false);
+  const [showActivationDialog, setShowActivationDialog] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
+  const [activationError, setActivationError] = useState(null);
   const application = requestState.data;
   const error = requestState.key === requestKey ? requestState.error : null;
   const isLoading = requestState.key !== requestKey;
@@ -285,6 +290,30 @@ export default function InstructorApplicationReview() {
     setRequestVersion((version) => version + 1);
   };
 
+  const submitActivation = async () => {
+    setIsActivating(true);
+    setActivationError(null);
+    setActionError(null);
+    try {
+      const activation = await activateInstructor(applicationId);
+      setRequestState((previous) => ({
+        ...previous,
+        data: {
+          ...previous.data,
+          activation,
+          applicant: { ...previous.data.applicant, role: activation.role },
+        },
+      }));
+      setShowActivationDialog(false);
+    } catch (requestError) {
+      console.error('Unable to activate instructor', requestError);
+      setActivationError(requestError.response?.data?.message
+        || 'Instructor activation failed. The approved application was not changed; review the account and subject state, then try again.');
+    } finally {
+      setIsActivating(false);
+    }
+  };
+
   return (
     <div className="flex min-h-[calc(100vh-4rem)] bg-slate-50 font-montserrat text-slate-800">
       <Sidebar pageId="instructorApplications" tabs={adminTabs} />
@@ -392,6 +421,37 @@ export default function InstructorApplicationReview() {
                     </p>
                   )}
                 </section>
+              )}
+
+              {application.applicationStatus === 'APPROVED' && !application.activation && (
+                <section aria-labelledby="instructor-activation-title" className="rounded-2xl border border-teal-200 bg-teal-50 p-5 shadow-sm sm:p-7">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <h2 id="instructor-activation-title" className="font-bold text-slate-900">Instructor activation</h2>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">The application passed review. Activate the account separately when the instructor is ready for operational access.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setActivationError(null); setShowActivationDialog(true); }}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-800 focus:outline-none focus:ring-4 focus:ring-teal-100"
+                    >
+                      <UserCheck className="h-4 w-4" /> Activate Instructor
+                    </button>
+                  </div>
+                </section>
+              )}
+
+              {application.activation && (
+                <Section icon={UserCheck} title="Activated Instructor" description="Operational instructor account created from this approved application.">
+                  <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    <Detail label="Instructor Profile ID" value={application.activation.instructorProfileId} />
+                    <Detail label="Account Role" value={humanize(application.activation.role)} />
+                    <Detail label="Profile Status" value={humanize(application.activation.instructorStatus)} />
+                    <Detail label="Activated At" value={formatDateTime(application.activation.activatedAt)} />
+                    <Detail label="Activated By" value={application.activation.activatedBy?.name} />
+                    <Detail label="Active Subjects" value={application.activation.assignedSubjects?.map((subject) => subject.subjectName).join(', ')} />
+                  </dl>
+                </Section>
               )}
 
               <Section icon={ClipboardCheck} title="Application Information" description="Submission and review tracking information.">
@@ -657,6 +717,23 @@ export default function InstructorApplicationReview() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {showActivationDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="presentation">
+          <div role="dialog" aria-modal="true" aria-labelledby="activate-instructor-dialog-title" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-7">
+            <h2 id="activate-instructor-dialog-title" className="text-xl font-bold text-slate-900">Activate this instructor?</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              This converts the applicant account to Instructor, creates an active InstructorProfile and subject assignments, and grants Instructor-level application permissions.
+            </p>
+            {activationError && <p role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{activationError}</p>}
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setShowActivationDialog(false)} disabled={isActivating} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">Cancel</button>
+              <button type="button" onClick={submitActivation} disabled={isActivating} className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-800 disabled:cursor-wait disabled:opacity-60">
+                <UserCheck className="h-4 w-4" /> {isActivating ? 'Activating…' : 'Confirm Activation'}
+              </button>
+            </div>
           </div>
         </div>
       )}

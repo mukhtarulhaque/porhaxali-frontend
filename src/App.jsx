@@ -57,7 +57,9 @@ function App() {
             <Route path='/admin/instructor-applications/:applicationId/review' element={<InstructorApplicationReview/>}></Route>
           </Route>
           {/* Faculty Routes */}
-          <Route path='/facultyDashboard' element={<FacultyDashboard/>}></Route>
+          <Route element={<RequireRole role="INSTRUCTOR" />}>
+            <Route path='/facultyDashboard' element={<FacultyDashboard/>}></Route>
+          </Route>
           <Route element={<RequireRole role="INSTRUCTOR_APPLICANT" />}>
             <Route path='/completeFacultyApplication' element={<CompleteApplication/>}></Route>
             <Route path='/completeFacultyApplication/documents' element={<CompleteApplication initialStep={3}/>}></Route>

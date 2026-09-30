@@ -27,6 +27,9 @@ export const getInstructorApplicationDocumentViewUrl = async (applicationId, doc
 export const startInstructorApplicationReview = async (applicationId) =>
   unwrapData(await Axios.post(`${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/start-review`));
 
+export const activateInstructor = async (applicationId) =>
+  unwrapData(await Axios.post(`${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/activate-instructor`));
+
 export const approveInstructorApplication = async (applicationId, remarks) =>
   unwrapData(await Axios.post(
     `${ADMIN_INSTRUCTOR_APPLICATIONS}/${applicationId}/approve`,
