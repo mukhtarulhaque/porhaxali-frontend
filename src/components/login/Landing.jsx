@@ -1,3 +1,4 @@
+import React, {useEffect, useState} from "react";
 import UseOnlineStatus from "../Hooks/UseOnlineStatus";
 import { 
   GraduationCap,
@@ -13,18 +14,12 @@ import RegisterButton from '../pages/commom/RegisterButton';
 import Footer from "../pages/footer";
 import CoursesCarousel from "../pages/unauthHome/CoursesCarousel";
 import TeacherApply from "./landingComponents/TeacherApply";
+import BestTeachers from "./landingComponents/BestTeachers";
 
 const Landing = () => {
 
   const isOnline = UseOnlineStatus();
-  
-  
-  const teachers = [
-    { id: 1, name: "Dr. Ananya Baruah", role: "Head of Mathematics", bio: "10+ years coaching state rankers and Olympiad achievers.", initials: "AB" },
-    { id: 2, name: "Rahul Sharma", role: "Physics Lead", bio: "Ex-FIITJEE faculty specializing in conceptual visual mechanics.", initials: "RS" },
-    { id: 3, name: "Priya Das", role: "Chemistry Expert", bio: "Organic Chemistry specialist with a focus on competitive foundations.", initials: "PD" }
-  ];
-  
+
   const students = [
     { id: 1, name: "Rahul Kalita", achievement: "98% in State Boards", text: "The structured live bootcamps completely changed how I approach math problems.", initials: "RK" },
     { id: 2, name: "Sneha Sarma", achievement: "Olympiad Rank 14", text: "The special Olympiad practice modules are flawless and challenging.", initials: "SS" }
@@ -178,34 +173,11 @@ const Landing = () => {
               </div>
             </div>
           </section>
+          <BestTeachers/>
     
-          {/* 👨‍🏫 SECTION 4: BEST TEACHERS & STUDENTS */}
-          <section id="team" className="max-w-7xl mx-auto py-20 px-6 space-y-20 scroll-mt-24">
-            
-            {/* Teachers List */}
-            <div>
-              <div className="text-center md:text-left mb-10">
-                <h2 className="font-montserrat text-3xl font-black text-slate-950 tracking-tight">Learn From Academic Pillars</h2>
-                <p className="text-slate-500 text-sm mt-1">Our certified subject experts break down intricate competitive parameters step-by-step.</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {teachers.map((t) => (
-                  <div key={t.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:border-indigo-200 hover:shadow-md transition">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-14 h-14 rounded-2xl bg-indigo-700 text-white font-black text-lg flex items-center justify-center shadow-inner">
-                        {t.initials}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-slate-900 text-lg leading-tight">{t.name}</h3>
-                        <p className="text-xs font-bold text-rose-600 mt-0.5">{t.role}</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-500 leading-relaxed">{t.bio}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-    
+          {/* 👨‍🏫 SECTION 4: BEST STUDENTS */}
+          
+            <section id="students" className="max-w-7xl mx-auto py-20 px-6 space-y-20 scroll-mt-24">
             {/* Student Testimonials Wall */}
             <div>
               <div className="text-center md:text-left mb-10">

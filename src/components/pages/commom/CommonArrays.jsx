@@ -20,7 +20,12 @@ const adminTabs = [
     { id: 'instructorApplications', label: 'Instructor Applications', icon: ClipboardCheck, path:'/admin/instructor-applications'},
     { id: 'allTeachers', label: 'All Teachers', icon: User, path:'/allTeachers'},
   ]
+  const facultyTabs = [
+    { id: "facultyDashboard", label: "Overview System", icon: LayoutDashboard, path:'/facultyDashboard'},
+    { id: 'facultyCourses', label: 'Your Courses', icon: BookOpen, path:'/allCoursesByFaculty'},
+    { id: 'batches', label: 'Your Batches', icon: User, path:'/allBatches'},
+  ]
 
 export {
-    studentTabs, adminTabs,
+    studentTabs, adminTabs, facultyTabs
 }
