@@ -2,9 +2,9 @@ import {useState, useEffect, useRef} from "react";
 import { useLocation, useNavigate,Link } from "react-router-dom";
 import UseAuth from "../../Hooks/UseAuth";
 //import AuthContext from "../../context/AuthProvider";
-import { LOGOUT } from "../../../api/Urls";
+import { LOGOUT, GET_INSTRUCTOR_PROFILE_PHOTO_URL } from "../../../api/Urls";
 import Axios from "../../../api/Axios";
-import {GraduationCap} from 'lucide-react';
+import {GraduationCap, CircleUser} from 'lucide-react';
 import SearchBox from "./SearchBox";
 import { BarLoader } from "react-spinners";
 import NotificationBell from "./NotificationBell";
@@ -20,6 +20,7 @@ const Navbar = () => {
     const location = useLocation();
     const [isLoading, setIsLoading] = useState(false);
     const [applicationStatus, setApplicationStatus] = useState(null);
+    const [profilePhoto, setProfilePhoto] = useState(null);
     
     useEffect(()=> {
         const handleClickOutsideAvatarDropDown = (event) => {
@@ -87,7 +88,32 @@ const Navbar = () => {
         console.error('Logout failed', error.response?.status);
         setIsLoading(false);
       }         
-    }
+    };
+    useEffect(()=> {
+      if(auth.userRole === 'INSTRUCTOR') {
+        const getProfilePhoto = async () => {
+          try {
+              await Axios.get(GET_INSTRUCTOR_PROFILE_PHOTO_URL,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${auth.jwtToken}`, // Ensure space after Bearer
+                    'Accept': 'application/json'
+                  }
+                }
+                )
+                  .then(function (response) {
+                      //console.log(response.data.data.url)
+                      setProfilePhoto(response.data.data.url);
+                  })
+          } catch (err) {
+              console.log(err);
+          }
+      };
+      getProfilePhoto();
+       
+      }
+    },[auth.userRole]);
+    
    
     return(
         <>
@@ -140,12 +166,18 @@ const Navbar = () => {
                                 className="flex rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(244,87,128)] focus:ring-offset-2 duration-150"
                                 onClick={() => setIsAvatarOpen((open) => !open)}
                             >
-                                <span className="sr-only">Open user menu</span>
-                                    <img
-                                    className="h-10 w-20 rounded-4xl object-cover border border-gray-300 hover:cursor-pointer"
-                                    src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80"
-                                    alt="User Avatar"
-                                    />
+                                {/* <span className="sr-only">Open user menu</span> */}
+                                <div className="rounded-4xl bg-white object-cover border border-gray-300 hover:cursor-pointer">
+                                  {profilePhoto === null ? <CircleUser className="h-10 w-10 "/> : 
+                                   <img
+                                   className="h-10 w-20 rounded-4xl"
+                                   src={profilePhoto}
+                                   alt="User Avatar"
+                                   />
+                                  }
+                                </div>
+                                
+                                    
                             </button>
                             {/* Dropdown Menu */}
                             {isAvatarOpen && (
