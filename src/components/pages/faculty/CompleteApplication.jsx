@@ -6,7 +6,13 @@ import useAuth from "../../Hooks/UseAuth";
 import Input from "../commom/Input";
 import Label from "../commom/Label";
 import FacultyProfilePhoto from "./facultyComponents/FacultyProfilePhoto";
-import { getAddressError, getDobError, getExperienceYearsError, getBiodataError } from "./facultyComponents/Validator";
+import {
+    getAddressError,
+    getBiodataError,
+    getDobError,
+    getExperienceYearsError,
+    getTeachingExperienceDescriptionError,
+} from "./facultyComponents/Validator";
 import FacultyApplicationDocuments from './facultyComponents/FacultyApplicationDocuments';
 import FacultyQualifications from './facultyComponents/FacultyQualifications';
 import FacultyRequestedSubjects from './facultyComponents/FacultyRequestedSubjects';
@@ -18,12 +24,13 @@ import {
     getActiveSubjects,
     getMyApplication,
     getProfilePhotoViewUrl,
+    getRequiredDocumentTypes,
     submitMyApplication,
     updateMyApplication,
     updateMyQualification,
     updateMyRequestedSubjects,
 } from '../../../api/InstructorApplication';
-import { EMPTY_APPLICATION } from './instructorApplicationConfig';
+import { EMPTY_APPLICATION, getInstructorSubmissionIssue } from './instructorApplicationConfig';
 
 const apiMessage = (error, fallback) => error.response?.data?.message ?? fallback;
 const isEditableStatus = (status) => status === 'DRAFT' || status === 'CHANGES_REQUESTED';
@@ -265,6 +272,7 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
         }
         if(currentStep === 2) {
             const experiYrError = getExperienceYearsError(formData.experienceYears);
+            const experienceDescriptionError = getTeachingExperienceDescriptionError(formData.teachingExperienceDescription);
             const biodataError = getBiodataError(formData.bio);
             const nextQualificationErrors = {};
             const enteredQualifications = qualifications.filter((qualification) => !isQualificationEmpty(qualification));
@@ -286,6 +294,10 @@ const CompleteApplication = ({ initialStep = 1, readOnly = false }) => {
             setQualificationErrors(nextQualificationErrors);
             if(experiYrError) {
                 setErrors((prev) => ({ ...prev, experienceYears: experiYrError}));
+                return;
+            }
+            if(experienceDescriptionError) {
+                setErrors((prev) => ({ ...prev, teachingExperienceDescription: experienceDescriptionError }));
                 return;
             }
             if(biodataError) {
@@ -314,6 +326,7 @@ const handleSubmit = async (e) => {
       setCurrentStep(2);
       return;
     }
+    setApplicationMessage(null);
     setShowSubmitConfirmation(true);
 };
 
@@ -322,6 +335,18 @@ const confirmSubmission = async () => {
   setIsSubmitting(true);
   setApplicationMessage(null);
   try {
+    const [latestApplication, requiredDocumentTypes] = await Promise.all([
+      refreshApplication(),
+      getRequiredDocumentTypes(),
+    ]);
+    const submissionIssue = getInstructorSubmissionIssue(latestApplication, requiredDocumentTypes);
+    if (submissionIssue) {
+      setApplicationMessage({ type: 'error', text: submissionIssue.message });
+      setCurrentStep(submissionIssue.step);
+      setShowSubmitConfirmation(false);
+      return;
+    }
+
     const submitted = await submitMyApplication();
     applyServerApplication(submitted);
     setShowSubmitConfirmation(false);
@@ -409,6 +434,10 @@ const openDatePicker = () => {
 const handleExperienceYearsBlur = (e) => {
     const errorMsg = getExperienceYearsError(e.target.value);
     setErrors((prev) => ({ ...prev, experienceYears: errorMsg }));
+};
+const handleTeachingExperienceDescriptionBlur = (e) => {
+    const errorMsg = getTeachingExperienceDescriptionError(e.target.value);
+    setErrors((prev) => ({ ...prev, teachingExperienceDescription: errorMsg }));
 };
 const handleBioBlur = (e) => {
     const errorMsg = getBiodataError(e.target.value);
@@ -746,17 +775,26 @@ const handleBioBlur = (e) => {
                 </div>
                 <div className="w-full font-montserrat sm:col-span-2">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-                        Teaching Experience Description
+                        Teaching Experience Description <span className="text-rose-500">*</span>
                     </label>
                     <textarea
                         name="teachingExperienceDescription"
                         rows={3}
+                        required
                         value={formData.teachingExperienceDescription || ''}
                         disabled={!isEditable}
                         onChange={handleInputChange}
+                        onBlur={handleTeachingExperienceDescriptionBlur}
                         placeholder="Describe your teaching experience, responsibilities, and notable outcomes..."
-                        className="mt-2 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10"
+                        className={`mt-2 w-full resize-none rounded-xl border px-4 py-3.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 ${
+                            errors?.teachingExperienceDescription
+                                ? 'border-rose-400 bg-rose-50/20 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
+                                : 'border-slate-200 bg-slate-50 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10'
+                        }`}
                     />
+                    {errors?.teachingExperienceDescription && (
+                        <p className="mt-1.5 text-xs text-rose-600">{errors.teachingExperienceDescription}</p>
+                    )}
                 </div>
                  <div className="w-full font-montserrat sm:col-span-2">
                         <div className="flex items-center justify-between">
@@ -983,6 +1021,11 @@ const handleBioBlur = (e) => {
             <p className="text-sm leading-6 text-slate-600">
               Please review your information and documents carefully. Submission sends your application for administrative review, and it cannot be edited while it is being reviewed.
             </p>
+            {applicationMessage?.type === 'error' && (
+              <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs leading-5 text-rose-700">
+                {applicationMessage.text}
+              </p>
+            )}
             <div className="mt-5 flex justify-end gap-3">
               <button
                 type="button"
