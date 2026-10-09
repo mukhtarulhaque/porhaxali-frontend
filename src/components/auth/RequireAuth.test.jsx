@@ -33,3 +33,32 @@ it('uses the existing unauthenticated redirect behavior for protected admin rout
   expect(screen.getByText('Public landing from /admin/instructor-applications')).toBeInTheDocument();
   expect(screen.queryByText('Protected list')).not.toBeInTheDocument();
 });
+
+it('waits for session restoration before rendering a protected route', async () => {
+  let finishRestoration;
+  const refreshCurrentUser = vi.fn(() => new Promise((resolve) => {
+    finishRestoration = resolve;
+  }));
+  UseAuth.mockReturnValue({
+    auth: { accessToken: 'restored-access-token' },
+    clearAuth: vi.fn(),
+    refreshCurrentUser,
+  });
+
+  render(
+    <MemoryRouter initialEntries={['/completeFacultyApplication']}>
+      <Routes>
+        <Route element={<RequireAuth />}>
+          <Route path="/completeFacultyApplication" element={<div>Faculty application</div>} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(screen.getByLabelText('Loading Bar')).toBeInTheDocument();
+  expect(screen.queryByText('Faculty application')).not.toBeInTheDocument();
+  expect(refreshCurrentUser).toHaveBeenCalledWith('restored-access-token');
+
+  finishRestoration({ userRole: 'INSTRUCTOR_APPLICANT' });
+  expect(await screen.findByText('Faculty application')).toBeInTheDocument();
+});

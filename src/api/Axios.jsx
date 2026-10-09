@@ -8,6 +8,8 @@ const api = axios.create({
     withCredentials: true,
 });
 
+let refreshInFlight = null;
+
 const readStoredAuth = () => {
     try {
         const savedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -26,6 +28,44 @@ const writeStoredAuth = (auth) => {
         localStorage.removeItem(AUTH_STORAGE_KEY);
         window.dispatchEvent(new CustomEvent("porhaxaliAuthUpdated", { detail: {} }));
     }
+};
+
+const refreshSession = (auth) => {
+    if (!refreshInFlight) {
+        refreshInFlight = api.post(
+            REFRESH,
+            { refreshToken: auth.refreshToken },
+            { skipAuth: true }
+        ).then((refreshResponse) => {
+            const refreshed = refreshResponse.data.data;
+            const accessToken = refreshed.accessToken ?? refreshed.token;
+            if (!accessToken) {
+                throw new Error('Refresh response did not include an access token');
+            }
+
+            const latestAuth = readStoredAuth();
+            const nextAuth = {
+                ...auth,
+                ...latestAuth,
+                accessToken,
+                jwtToken: accessToken,
+                refreshToken: refreshed.refreshToken,
+                userEmail: refreshed.email ?? latestAuth.userEmail ?? auth.userEmail,
+                userName: refreshed.name ?? latestAuth.userName ?? auth.userName,
+                userRole: refreshed.role ?? latestAuth.userRole ?? auth.userRole,
+            };
+
+            writeStoredAuth(nextAuth);
+            return accessToken;
+        }).catch((error) => {
+            writeStoredAuth({});
+            throw error;
+        }).finally(() => {
+            refreshInFlight = null;
+        });
+    }
+
+    return refreshInFlight;
 };
 
 api.interceptors.request.use((config) => {
@@ -64,25 +104,7 @@ api.interceptors.response.use(
         originalRequest._retry = true;
 
         try {
-            const refreshResponse = await api.post(
-                REFRESH,
-                { refreshToken: auth.refreshToken },
-                { skipAuth: true }
-            );
-
-            const refreshed = refreshResponse.data.data;
-            const accessToken = refreshed.accessToken ?? refreshed.token;
-            const nextAuth = {
-                ...auth,
-                accessToken,
-                jwtToken: accessToken,
-                refreshToken: refreshed.refreshToken,
-                userEmail: refreshed.email ?? auth.userEmail,
-                userName: refreshed.name ?? auth.userName,
-                userRole: refreshed.role ?? auth.userRole,
-            };
-
-            writeStoredAuth(nextAuth);
+            const accessToken = await refreshSession(auth);
             originalRequest.headers = {
                 ...originalRequest.headers,
                 Authorization: `Bearer ${accessToken}`,
@@ -90,7 +112,6 @@ api.interceptors.response.use(
 
             return api(originalRequest);
         } catch (refreshError) {
-            writeStoredAuth({});
             return Promise.reject(refreshError);
         }
     }
