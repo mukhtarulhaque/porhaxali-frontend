@@ -93,6 +93,12 @@ export const getExperienceYearsError = (value) => {
     }
     return '';
 };
+export const getTeachingExperienceDescriptionError = (value) => {
+    if (!value || !value.trim()) {
+      return 'Teaching experience description is required.';
+    }
+    return '';
+};
 export const getBiodataError = (value) => {
     if (!value || !value.trim()) {
       return 'Short Bio is required.';
