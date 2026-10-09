@@ -62,9 +62,11 @@ export const getProfilePhotoViewUrl = async () =>
 export const uploadFileToR2 = async (uploadUrl, file, requiredHeaders = {}) => {
     const headers = new Headers();
     const browserControlledHeaders = new Set(['host', 'content-length', 'connection']);
+    const credentialHeaders = new Set(['authorization', 'cookie', 'proxy-authorization']);
 
     Object.entries(requiredHeaders).forEach(([name, values]) => {
-        if (browserControlledHeaders.has(name.toLowerCase())) return;
+        const normalizedName = name.toLowerCase();
+        if (browserControlledHeaders.has(normalizedName) || credentialHeaders.has(normalizedName)) return;
         const value = Array.isArray(values) ? values.join(',') : values;
         if (value != null) headers.set(name, value);
     });
@@ -75,6 +77,7 @@ export const uploadFileToR2 = async (uploadUrl, file, requiredHeaders = {}) => {
         method: 'PUT',
         headers,
         body: file,
+        credentials: 'omit',
     });
 
     if (!response.ok) {
