@@ -234,7 +234,8 @@ const Login = () => {
                     const userName = response.data.data.name;
                     const userRole = response.data.data.role;
                     const phone = response.data.data.phone;
-                    setAuth({accessToken, jwtToken, refreshToken, userEmail, userName, userRole, phone})
+                    const userId = response.data.data.id;
+                    setAuth({accessToken, jwtToken, refreshToken, userEmail, userName, userRole, phone, userId})
                     //navigate(from, { replace: true });
                     //<Navigate to="/landing" state={{ from: location }} replace />
                     if(userRole === 'STUDENT') {

@@ -95,7 +95,7 @@ const BestTeachers = () => {
           signal: controller.signal,
           skipAuth: true,
         });
-        const page = response.data?.data;
+        const page = response.data?.data; console.log(response);
 
         if (!Array.isArray(page?.content)) {
           throw new Error("Invalid public instructor response");

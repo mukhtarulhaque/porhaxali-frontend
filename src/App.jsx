@@ -23,6 +23,7 @@ import RequireRole from './components/auth/RequireRole';
 import InstructorApplicationStatus from './components/pages/faculty/InstructorApplicationStatus';
 import InstructorApplications from './components/pages/admin/InstructorApplications';
 import InstructorApplicationReview from './components/pages/admin/InstructorApplicationReview';
+import FacultyProfile from './components/pages/faculty/FacultyProfile';
 
 function App() {
   return (
@@ -59,6 +60,7 @@ function App() {
           {/* Faculty Routes */}
           <Route element={<RequireRole role="INSTRUCTOR" />}>
             <Route path='/facultyDashboard' element={<FacultyDashboard/>}></Route>
+            <Route path='/facultyProfile' element={<FacultyProfile/>}></Route>
           </Route>
           <Route element={<RequireRole role="INSTRUCTOR_APPLICANT" />}>
             <Route path='/completeFacultyApplication' element={<CompleteApplication/>}></Route>
