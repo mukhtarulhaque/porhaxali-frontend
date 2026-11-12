@@ -22,6 +22,7 @@ const adminTabs = [
   ]
   const facultyTabs = [
     { id: "facultyDashboard", label: "Overview System", icon: LayoutDashboard, path:'/facultyDashboard'},
+    { id: "facultyProfile", label: "Your Profile", icon: User, path:'/facultyProfile'},
     { id: 'facultyCourses', label: 'Your Courses', icon: BookOpen, path:'/allCoursesByFaculty'},
     { id: 'batches', label: 'Your Batches', icon: User, path:'/allBatches'},
   ]
